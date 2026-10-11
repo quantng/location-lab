@@ -313,7 +313,8 @@ export const BLOCKS = [
       keep.forEach((k, i) => L.fc.features[k].properties.resid = +r.res[i].toFixed(3)); ctx.restyle(L, { mode: 'div', field: 'resid' });
       L.lastOLS = { aic: r.aic, r2: r.r2, ll: r.ll };
       let mor = ''; if (L.W) { const m = ctx.S.moran(subW(L.W, keep), r.res, 499); mor = `<div class="kpis">${ctx.kpi(m.I.toFixed(3), 'Moran’s I of residuals')}${ctx.kpi(pfmt(m.pSim), 'p-value')}</div>`; L.residMoran = m.I; }
-      return { html: `<div class="kpis">${ctx.kpi(r.r2.toFixed(3), 'R²')}${ctx.kpi(Math.round(r.aic).toLocaleString(), 'AIC (lower is better)')}${ctx.kpi(r.n.toLocaleString(), 'rows')}</div>${mor}`, nodes: [coefTable(ctx, r)], read: L.W ? (L.residMoran > 0.05 ? `The map shows residuals (red = under-predicted, blue = over-predicted). They cluster (Moran’s I = ${L.residMoran.toFixed(3)}), so OLS’s assumption of independent errors fails. Try the spatial lag and spatial error models next.` : 'Residuals show little spatial clustering: OLS may be adequate here.') : 'Add a Weights block to test whether the residuals cluster in space.' };
+      const weak = r.r2 < 0.15 ? `R² is only ${r.r2.toFixed(2)}: these variables explain little of the variation on their own. Much of what is left is local, which is what the spatial models and GWR pick up. ` : '';
+      return { html: `<div class="kpis">${ctx.kpi(r.r2.toFixed(3), 'R²')}${ctx.kpi(Math.round(r.aic).toLocaleString(), 'AIC (lower is better)')}${ctx.kpi(r.n.toLocaleString(), 'rows')}</div>${mor}`, nodes: [coefTable(ctx, r)], read: weak + (L.W ? (L.residMoran > 0.05 ? `The map shows residuals (red = under-predicted, blue = over-predicted). They cluster (Moran’s I = ${L.residMoran.toFixed(3)}), so OLS’s assumption of independent errors fails. Try the spatial lag and spatial error models next.` : 'Residuals show little spatial clustering: OLS may be adequate here.') : 'Add a Weights block to test whether the residuals cluster in space.') };
     } },
   { id: 'slm', group: 'reg', name: 'Spatial lag model', what: 'Adds the neighbours’ y as a predictor: my value depends on my neighbours’ values (spillover).',
     params: [wLayer(), { k: 'y', label: 'Explain (y)', type: 'field', of: 'layer', numeric: true, prefer: ['count', 'price_psm'] }, { k: 'xs', label: 'Using (x)', type: 'fields', of: 'layer', numeric: true, exclude: 'y' }],
@@ -339,11 +340,11 @@ export const BLOCKS = [
       const r = ctx.S.gwr(Y, X, p.xs, xy, p.bw || null, n => say(`Bandwidth search: ${n} tries…`));
       const feats = keep.map((k, i) => { const f = L0.fc.features[k]; const pr = { ...f.properties }; r.names.forEach((n, j) => pr['b_' + n] = +r.B[i][j].toFixed(5)); return { type: 'Feature', properties: pr, geometry: f.geometry }; });
       L0.visible = false; ctx.render(L0);
-      const id = L0.id + '_gwr', G = ctx.addLayer({ id, name: `GWR on ${L0.name.split(' (')[0]}`, kind: L0.kind, fc: { type: 'FeatureCollection', features: feats }, style: { mode: 'div', field: 'b_' + p.xs[0] } });
+      const id = L0.id + '_gwr', G = ctx.addLayer({ id, name: `GWR on ${L0.name.split(' (')[0]}`, kind: L0.kind, fc: { type: 'FeatureCollection', features: feats }, style: { mode: 'div', field: 'b_' + p.xs[0], radius: L0.kind === 'point' ? 5 : undefined } });
       const o = ctx.S.ols(Y, X, p.xs);
       const rows = r.names.map((n, j) => { const c = r.B.map(b => b[j]); return [n, ctx.fmt(o.b[j]), ctx.fmt(ctx.S.quantile(c, 0.05)), ctx.fmt(ctx.S.quantile(c, 0.5)), ctx.fmt(ctx.S.quantile(c, 0.95))]; });
       const btns = document.createElement('div'); btns.className = 'kpis';
-      r.names.slice(1).forEach(n => { const b = document.createElement('button'); b.className = 'ghost sm'; b.textContent = `Map ${n}`; b.onclick = () => ctx.restyle(G, { mode: 'div', field: 'b_' + n }); btns.appendChild(b); });
+      r.names.slice(1).forEach(n => { const b = document.createElement('button'); b.className = 'ghost sm'; b.textContent = `Map ${n}`; b.onclick = () => ctx.restyle(G, { mode: 'div', field: 'b_' + n, radius: G.kind === 'point' ? 5 : undefined }); btns.appendChild(b); });
       return { html: `<div class="kpis">${ctx.kpi(r.bw, 'neighbours per local fit')}${ctx.kpi(r.r2.toFixed(3), `R² (OLS ${o.r2.toFixed(3)})`)}${ctx.kpi(keep.length.toLocaleString(), 'rows used')}</div>`, nodes: [ctx.C.table(['Variable', 'OLS', 'GWR 5th pct', 'median', '95th pct'], rows), btns], read: `OLS gives one number per variable for the whole map. GWR gives one per location: the map shows the local effect of <b>${ctx.esc(p.xs[0])}</b>. If the 5th and 95th percentiles have opposite signs, the effect really changes across the city.` };
     } },
 ];

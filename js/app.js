@@ -66,7 +66,7 @@ function colorExpr(L) {
   if (st.mode === 'seq' || st.mode === 'div') {
     const v = vals(L, st.field); let br, cols;
     if (st.mode === 'div') { const m = Math.max(...v.map(Math.abs).filter(Number.isFinite)) || 1; br = [-0.6, -0.3, -0.1, 0.1, 0.3, 0.6].map(t => t * m); cols = DIV; }
-    else { br = quantBreaks(v, 6); cols = SEQ; br = br.filter((b, i) => i === 0 || b > br[i - 1]); }
+    else { const zero = v.filter(x => x === 0).length / v.length; br = zero > 0.3 ? [0, ...quantBreaks(v.filter(x => x > 0), 5)] : quantBreaks(v, 6); cols = SEQ; br = br.filter((b, i) => i === 0 || b > br[i - 1]); }
     st.breaks = br; st.cols = cols.slice(0, br.length + 1);
     return ['case', ['!', ['to-boolean', ['get', st.field]]], st.field && v.some(x => x === 0) ? cols[0] : css('--ns'), ['step', ['to-number', ['get', st.field]], st.cols[0], ...br.flatMap((b, i) => [b, st.cols[i + 1]])]];
   }
