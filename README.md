@@ -2,7 +2,13 @@
 
 A drag-and-drop workbench for spatial data and location analytics, built for the **Locational AI, Mapping and Geospatial Business (LMGB)** course at MDI Gurgaon.
 
-**Open it:** https://quantng.github.io/location-lab/ — nothing to install. Everything runs in your browser and files you upload never leave your laptop.
+**Open it:** https://quantng.github.io/location-lab/ — nothing to install.
+
+**Watch first:** https://quantng.github.io/location-lab/explainer/ (animated explainer, 14 steps) · video: `explainer/Location-Analytics-Animated.mp4`
+
+**Lab manual:** https://quantng.github.io/location-lab/lab/
+
+Everything runs in your browser and files you upload never leave your laptop.
 
 ## What it does
 
