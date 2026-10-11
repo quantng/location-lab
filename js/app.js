@@ -3,6 +3,7 @@ import * as S from './stats.js';
 import * as C from './charts.js';
 import { readAny, toCSV } from './io.js';
 import { GEO, RECIPES } from './config.js';
+import { NEWS } from './news.js';
 
 const h3 = window.h3;
 const $ = s => document.querySelector(s);
@@ -246,7 +247,7 @@ function drawRecipe() {
   const list = RECIPES[state.geo]; const r = state.recipe || list[0]; state.recipe = r;
   const done = new Set(state.pipeline.filter(c => c.ran && c.recipeStep && c.recipeStep.r === r.id).map(c => c.recipeStep.i));
   const next = r.steps.findIndex((_, i) => !done.has(i) && !state.pipeline.some(c => c.recipeStep && c.recipeStep.r === r.id && c.recipeStep.i === i));
-  box.innerHTML = `<div class="recipe"><label for="recipesel" class="status">Guided recipe</label><select id="recipesel">${list.map(x => `<option value="${x.id}" ${x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select><p>${r.why}</p><ol class="steps">${r.steps.map((s, i) => `<li class="${done.has(i) ? 'done' : i === next ? 'next' : ''}"><i>${i + 1}</i><span>${s.say}</span></li>`).join('')}</ol>${next >= 0 ? `<button class="nextbtn" id="nextstep">Add step ${next + 1}: ${esc(BLOCKS.find(b => b.id === r.steps[next].b).name)}</button>` : '<p><b>Recipe complete.</b> Switch to Free play to try your own data.</p>'}</div>`;
+  box.innerHTML = `<div class="recipe"><label for="recipesel" class="status">Guided recipe</label><select id="recipesel">${list.map(x => `<option value="${x.id}" ${x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select><p>${r.why}</p>${(NEWS[r.id[1]] || []).map(n => `<a class="news" href="${n.url}" target="_blank" rel="noopener"><span>In the news · ${esc(n.src)} · ${esc(n.date)}</span><b>${esc(n.head)}</b><small>${esc(n.link)}</small></a>`).join('')}<ol class="steps">${r.steps.map((s, i) => `<li class="${done.has(i) ? 'done' : i === next ? 'next' : ''}"><i>${i + 1}</i><span>${s.say}</span></li>`).join('')}</ol>${next >= 0 ? `<button class="nextbtn" id="nextstep">Add step ${next + 1}: ${esc(BLOCKS.find(b => b.id === r.steps[next].b).name)}</button>` : '<p><b>Recipe complete.</b> Switch to Free play to try your own data.</p>'}</div>`;
   $('#recipesel').onchange = e => { state.recipe = list.find(x => x.id === e.target.value); drawRecipe(); };
   const nb = $('#nextstep'); if (nb) nb.onclick = () => { const s = r.steps[next]; addCard(s.b, s.p || {}, { r: r.id, i: next }); drawRecipe(); };
   // dim blocks not used in this recipe
