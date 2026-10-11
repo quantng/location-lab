@@ -2,13 +2,12 @@
 import * as S from './stats.js';
 import * as C from './charts.js';
 import { readAny, toCSV } from './io.js';
-import { GEO, RECIPES } from './config.js';
-import { NEWS } from './news.js';
+import { GEO } from './config.js';
 
 const h3 = window.h3;
 const $ = s => document.querySelector(s);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const state = { geo: 'india', mode: 'guided', layers: new Map(), pipeline: [], recipe: null, uid: 0, pick: null, nbMode: null };
+const state = { geo: 'india', layers: new Map(), uid: 0, pick: null, cfg: null, runs: [] };
 window.LL = state; // handy for debugging in class
 
 // ---------------------------------------------------------------- map
@@ -58,7 +57,7 @@ function rampColor(stops, v) { if (!(v >= stops[0][0])) return stops[0][1]; for 
 function addLayer(L) {
   L.id = L.id || 'L' + (++state.uid); L.visible = L.visible ?? true; L.style = L.style || { mode: 'single' };
   if (state.layers.has(L.id)) removeMapLayers(L.id);
-  state.layers.set(L.id, L); render(L); refreshLayerList(); refreshParams(); return L;
+  state.layers.set(L.id, L); render(L); refreshLayerList(); if (state.cfg) drawParams(state.cfg); return L;
 }
 function removeMapLayers(id) { for (const s of ['fill', 'line', 'circle', 'ext', 'heat', 'ras', 'sel']) if (map.getLayer(`${id}-${s}`)) map.removeLayer(`${id}-${s}`); if (map.getSource(id)) map.removeSource(id); }
 function colorExpr(L) {
@@ -117,12 +116,8 @@ function legend(L) {
   else { el.hidden = true; return; }
   el.innerHTML = h; el.hidden = false;
 }
-function refreshLayerList() {
-  const box = $('#layerlist'); if (!state.layers.size) { box.innerHTML = '<p class="empty">Load a dataset to start.</p>'; return; }
-  box.innerHTML = [...state.layers.values()].reverse().map(L => `<div class="layer"><input type="checkbox" id="vis-${L.id}" ${L.visible ? 'checked' : ''}><label for="vis-${L.id}" title="${esc(L.name)}">${esc(L.name)}</label><small>${L.kind === 'raster' ? L.raster.w + '×' + L.raster.h : L.fc.features.length}</small></div>`).join('');
-  box.querySelectorAll('input').forEach(i => i.onchange = () => { const L = state.layers.get(i.id.slice(4)); L.visible = i.checked; render(L); });
-}
-function restyle(L, style) { L.style = { ...style }; render(L); }
+function refreshLayerList() { drawLayerCards(); }
+function restyle(L, style) { L.style = { ...style }; render(L); drawLayerCards(); }
 
 // popups + neighbour viewer
 map.on('click', e => {
@@ -141,64 +136,86 @@ function pickPoint() { return new Promise(res => { state.pick = res; $('#pickhin
 $('#pickcancel').onclick = e => { e.stopPropagation(); state.pick = null; $('#pickhint').hidden = true; map.getCanvas().style.cursor = ''; };
 function fit(L) { let b = [Infinity, Infinity, -Infinity, -Infinity]; if (L.kind === 'raster') b = L.raster.bbox; else for (const f of L.fc.features) { const walk = c => typeof c[0] === 'number' ? (b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]) : c.forEach(walk); walk(f.geometry.coordinates); } map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, duration: 600, maxZoom: 16 }); }
 
-// ---------------------------------------------------------------- blocks
+// ---------------------------------------------------------------- blocks & UI (CARTO-style)
 import { BLOCKS, GROUPS } from './blocks.js';
 const ctx = { state, map, S, C, h3, addLayer, render, restyle, fit, legend, geo, proj, xyKm, lonlat, props, vals, numFields, allFields, kindOf, fmt, esc, kpi, anchor, circlePoly, pickPoint, rasterAt, readAny, toCSV, CAT, LISA_C, GI_C, NDVI, centroid, css, toast };
+const HIDDEN = new Set(['load', 'upload', 'style', 'export']);
+const ICON = {
+  explore: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>',
+  nearest: '<circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/>',
+  sql: '<path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  boxdist: '<rect x="4" y="4" width="16" height="16"/><circle cx="12" cy="12" r="8"/>',
+  join: '<path d="M3 5l7-2 6 3 5-2v15l-5 2-6-3-7 2z"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/>',
+  h3bin: '<path d="M12 2l8 4.6v9.2L12 20.4 4 15.8V6.6z"/><path d="M12 8l4 2.3v4.4L12 17l-4-2.3v-4.4z"/>',
+  heat: '<circle cx="12" cy="12" r="9" opacity=".3" fill="currentColor"/><circle cx="12" cy="12" r="5" opacity=".6" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/>',
+  ndvi: '<path d="M12 21c-4-3-7-7-7-11a7 7 0 0114 0c0 4-3 8-7 11z"/><path d="M12 21V9"/>',
+  weights: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="6" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M10 10.5L5.5 6.5M14 10.5l4.5-3.5M10 13.5l-3.5 4M14 13.5l3.5 4"/>',
+  lag: '<path d="M3 17l5-5 4 3 8-9"/><path d="M15 6h5v5"/>',
+  pattern: '<circle cx="5" cy="6" r="1.6" fill="currentColor"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="6" cy="10" r="1.6" fill="currentColor"/><circle cx="17" cy="16" r="1.6" fill="currentColor"/><circle cx="19" cy="6" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/>',
+  moran: '<path d="M4 20V4M4 20h16"/><path d="M6 17l13-11"/><circle cx="9" cy="12" r="1.3" fill="currentColor"/><circle cx="14" cy="10" r="1.3" fill="currentColor"/><circle cx="16" cy="6" r="1.3" fill="currentColor"/>',
+  lisa: '<rect x="3" y="3" width="8" height="8" fill="currentColor" opacity=".9"/><rect x="13" y="3" width="8" height="8" opacity=".5"/><rect x="3" y="13" width="8" height="8" opacity=".5"/><rect x="13" y="13" width="8" height="8" fill="currentColor" opacity=".35"/>',
+  gistar: '<path d="M12 3c2 4 6 5 6 10a6 6 0 01-12 0c0-3 2-4 3-7 1 2 2 3 3 3 0-2-1-4 0-6z"/>',
+  dbscan: '<circle cx="7" cy="8" r="4"/><circle cx="17" cy="15" r="4"/><circle cx="19" cy="4" r="1" fill="currentColor"/>',
+  sample: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="15" cy="10" r="1.4" fill="currentColor"/><circle cx="10" cy="16" r="1.4" fill="currentColor"/>',
+  idw: '<path d="M3 17c3-6 6-8 9-8s6 2 9 8"/><circle cx="6" cy="14" r="1.4" fill="currentColor"/><circle cx="12" cy="9" r="1.4" fill="currentColor"/><circle cx="18" cy="14" r="1.4" fill="currentColor"/>',
+  krige: '<path d="M3 17c3-6 6-8 9-8s6 2 9 8"/><path d="M3 13c3-6 6-8 9-8s6 2 9 8" opacity=".4"/><path d="M3 21c3-6 6-8 9-8s6 2 9 8" opacity=".4"/>',
+  distto: '<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M6.5 16.5l11-9" stroke-dasharray="2 2"/>',
+  ols: '<path d="M4 20V4M4 20h16"/><path d="M5 18l15-12"/>',
+  slm: '<path d="M4 20V4M4 20h16"/><path d="M5 18l15-12"/><circle cx="16" cy="15" r="3"/>',
+  sem: '<path d="M4 20V4M4 20h16"/><path d="M5 18l15-12"/><path d="M13 16h6M16 13v6"/>',
+  gwr: '<path d="M3 20h18"/><path d="M4 17l4-6M10 17l3-10M16 17l4-3"/>',
+};
+const iconSVG = id => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[id] || '<circle cx="12" cy="12" r="8"/>'}</svg>`;
 
-function buildPalette() {
-  const pal = $('#palette'); pal.innerHTML = '';
+// ---------- tabs
+function showTab(t) { document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t)); $('#tab-layers').hidden = t !== 'layers'; $('#tab-analysis').hidden = t !== 'analysis'; $('#config').hidden = true; }
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+// ---------- tiles
+function buildTiles() {
+  const box = $('#tiles'); box.innerHTML = '';
   for (const g of GROUPS) {
-    const sec = document.createElement('div'); sec.className = 'grp';
-    sec.innerHTML = `<h3><i style="background:var(${g.c})"></i>${g.name}</h3><p class="sub">${g.sub}</p>`;
-    for (const b of BLOCKS.filter(b => b.group === g.id)) {
-      const d = document.createElement('div'); d.className = 'blk'; d.draggable = true; d.tabIndex = 0; d.style.setProperty('--c', `var(${g.c})`); d.dataset.block = b.id; d.title = b.what;
-      d.innerHTML = `<span>${b.name}</span><button class="add" aria-label="Add ${b.name}">+</button>`;
-      d.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', b.id));
-      d.querySelector('.add').onclick = () => addCard(b.id);
-      d.onkeydown = e => { if (e.key === 'Enter') addCard(b.id); };
-      sec.appendChild(d);
+    const list = BLOCKS.filter(b => b.group === g.id && !HIDDEN.has(b.id)); if (!list.length) continue;
+    const sec = document.createElement('div'); sec.className = 'tgroup'; sec.innerHTML = `<h5><i style="background:var(${g.c})"></i>${g.name}</h5><div class="tgrid"></div>`;
+    for (const b of list) {
+      const t = document.createElement('button'); t.className = 'tile'; t.draggable = true; t.dataset.block = b.id; t.title = b.what; t.style.setProperty('--c', `var(${g.c})`);
+      t.innerHTML = `${iconSVG(b.id)}<span>${esc(b.name)}</span>`;
+      t.addEventListener('dragstart', e => { e.dataTransfer.setData('application/x-block', b.id); e.dataTransfer.effectAllowed = 'copy'; });
+      t.onclick = () => openConfig(b.id);
+      sec.querySelector('.tgrid').appendChild(t);
     }
-    pal.appendChild(sec);
+    box.appendChild(sec);
   }
 }
-const dz = $('#pipeline');
-dz.addEventListener('dragover', e => { e.preventDefault(); $('#dropzone').classList.add('over'); });
-dz.addEventListener('dragleave', () => $('#dropzone').classList.remove('over'));
-dz.addEventListener('drop', e => { e.preventDefault(); $('#dropzone').classList.remove('over'); const id = e.dataTransfer.getData('text/plain'); if (id) addCard(id); });
 
-function addCard(blockId, preset = {}, recipeStep = null) {
-  const B = BLOCKS.find(b => b.id === blockId); if (!B) return;
-  const card = { uid: ++state.uid, B, params: { ...defaults(B), ...preset }, recipeStep, ran: false };
-  state.pipeline.push(card); drawCard(card); updateCount();
-  setTimeout(() => card.el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
-  return card;
-}
+// ---------- config panel
 function defaults(B) { const p = {}; for (const q of B.params || []) if (q.def !== undefined) p[q.k] = typeof q.def === 'function' ? q.def(ctx) : q.def; return p; }
-function drawCard(card) {
-  const { B } = card, g = GROUPS.find(g => g.id === B.group);
-  const li = document.createElement('li'); li.className = 'card'; li.style.setProperty('--c', `var(${g.c})`);
-  li.innerHTML = `<div class="ch"><span class="num">${state.pipeline.indexOf(card) + 1}</span><b>${B.name}</b><button class="x" aria-label="Remove block">×</button></div><p class="what">${B.what}</p><div class="params"></div><button class="run">Run</button><div class="status"></div><div class="out"></div>`;
-  li.querySelector('.x').onclick = () => { state.pipeline = state.pipeline.filter(c => c !== card); li.remove(); updateCount(); renumber(); };
-  li.querySelector('.run').onclick = () => runCard(card);
-  card.el = li; $('#pipeline').insertBefore(li, $('#dropzone')); drawParams(card);
+function openConfig(blockId, preset = {}) {
+  const B = BLOCKS.find(b => b.id === blockId); if (!B) return;
+  const g = GROUPS.find(x => x.id === B.group);
+  state.cfg = { uid: ++state.uid, B, params: { ...defaults(B), ...preset }, el: $('#config') };
+  $('#tab-layers').hidden = true; $('#tab-analysis').hidden = true; $('#config').hidden = false;
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === 'analysis'));
+  $('#cfg-title').textContent = B.name; $('#cfg-title').style.color = `var(${g.c})`; $('#cfg-what').textContent = B.what; $('#cfg-status').textContent = ''; $('#cfg-status').className = 'status';
+  drawParams(state.cfg);
 }
-function renumber() { state.pipeline.forEach((c, i) => c.el.querySelector('.num').textContent = i + 1); }
-function updateCount() { $('#flowcount').textContent = `${state.pipeline.length} block${state.pipeline.length === 1 ? '' : 's'}`; }
+$('#back').onclick = () => { state.cfg = null; showTab('analysis'); };
+$('#cfg-run').onclick = () => state.cfg && runCfg(state.cfg);
 function layerOpts(kinds) { return [...state.layers.values()].filter(L => !kinds || kinds.includes(L.kind)); }
 function drawParams(card) {
-  const box = card.el.querySelector('.params'); box.innerHTML = '';
+  const box = $('#cfg-params'); box.innerHTML = '';
   for (const q of card.B.params || []) {
     if (q.show && !q.show(card.params, ctx)) continue;
     const id = `p${card.uid}-${q.k}`; const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = q.label; let inp;
     const v = card.params[q.k];
     if (q.type === 'layer') {
       inp = document.createElement('select'); const opts = layerOpts(q.kinds);
-      if (!opts.length) inp.innerHTML = `<option value="">(load a ${q.kinds ? q.kinds.join('/') : ''} layer first)</option>`;
+      if (!opts.length) inp.innerHTML = `<option value="">Add a ${q.kinds ? q.kinds.join(' or ') : ''} layer first</option>`;
       else { inp.innerHTML = opts.map(L => `<option value="${L.id}">${esc(L.name)}</option>`).join(''); let pick = opts.find(L => L.id === v);
         const real = opts.filter(L => !L.helper);
         if (!pick) for (const pr of [].concat(q.prefer || [])) { pick = pr === 'W' ? [...real].reverse().find(L => L.W) : pr === 'LATEST' ? [...real].reverse().find(L => L.id !== card.params.layer) : [...real].reverse().find(L => L.id.includes(pr)); if (pick) break; }
         pick = pick || real[real.length - 1] || opts[opts.length - 1]; inp.value = pick.id; card.params[q.k] = pick.id; }
-      if (q.optional) { inp.insertAdjacentHTML('afterbegin', '<option value="">— none —</option>'); if (!v && q.optionalDefaultNone) { inp.value = ''; card.params[q.k] = ''; } }
+      if (q.optional) { inp.insertAdjacentHTML('afterbegin', '<option value="">— none —</option>'); }
     } else if (q.type === 'field' || q.type === 'fields') {
       const L = state.layers.get(card.params[q.of]); const fs = L ? (q.numeric ? numFields(L) : allFields(L)) : [];
       if (q.type === 'field') { inp = document.createElement('select'); inp.innerHTML = (q.optional ? '<option value="">— none —</option>' : '') + fs.map(f => `<option>${esc(f)}</option>`).join(''); const want = fs.includes(v) ? v : (q.prefer && fs.find(f => q.prefer.includes(f))) || (q.optional ? '' : fs[0]); inp.value = want ?? ''; card.params[q.k] = inp.value; }
@@ -213,56 +230,115 @@ function drawParams(card) {
       inp = document.createElement('select'); const pts = geo().points;
       inp.innerHTML = pts.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '<option value="pick">Click on the map…</option>' + (card.params._custom ? `<option value="custom">Your point (${card.params._custom.map(x => x.toFixed(4)).join(', ')})</option>` : '');
       inp.value = v === 'custom' && card.params._custom ? 'custom' : pts.some(p => p.id === v) ? v : pts[0].id; card.params[q.k] = inp.value;
-      inp.addEventListener('change', async () => { if (inp.value === 'pick') { const ll = await pickPoint(); card.params._custom = ll; card.params[q.k] = 'custom'; drawParams(card); } });
+      inp.addEventListener('change', async () => { if (inp.value === 'pick') { const ll = await pickPoint(); card.params._custom = ll; card.params[q.k] = 'custom'; drawParams(card); } else card.params[q.k] = inp.value; });
     } else if (q.type === 'text') { inp = document.createElement('textarea'); inp.value = v ?? ''; inp.spellcheck = false; lab.style.gridColumn = '1/-1'; }
-    else if (q.type === 'file') { inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.csv,.geojson,.json,.parquet,.fgb,.tif,.tiff'; inp.addEventListener('change', () => card.params[q.k] = inp.files[0]); }
-    else { inp = document.createElement('input'); inp.type = 'number'; inp.value = v; if (q.step) inp.step = q.step; if (q.min != null) inp.min = q.min; if (q.max != null) inp.max = q.max; }
+    else { inp = document.createElement('input'); inp.type = 'number'; inp.value = v; if (q.step) inp.step = q.step; if (q.min != null) inp.min = q.min; }
     inp.id = id;
-    if (q.type !== 'fields' && q.type !== 'file' && q.type !== 'point') inp.addEventListener('change', () => { card.params[q.k] = q.type === 'number' ? +inp.value : inp.value; if ((card.B.params || []).some(o => o.of === q.k || o.show || typeof o.options === 'function')) drawParams(card); });
-    if (q.type === 'point') inp.addEventListener('change', () => { if (inp.value !== 'pick') card.params[q.k] = inp.value; });
+    if (!['fields', 'point'].includes(q.type)) inp.addEventListener('change', () => { card.params[q.k] = q.type === 'number' ? +inp.value : inp.value; if ((card.B.params || []).some(o => o.of === q.k || o.show || typeof o.options === 'function')) drawParams(card); });
     box.append(lab, inp);
   }
 }
-function refreshParams() { for (const c of state.pipeline) drawParams(c); }
-async function runCard(card) {
-  const btn = card.el.querySelector('.run'), st = card.el.querySelector('.status'), out = card.el.querySelector('.out');
-  btn.disabled = true; st.className = 'status'; st.textContent = 'Running…'; out.innerHTML = '';
-  await new Promise(r => setTimeout(r, 30));
-  const t0 = performance.now();
+async function runCfg(card) {
+  const btn = $('#cfg-run'), st = $('#cfg-status');
+  btn.disabled = true; st.className = 'status'; st.textContent = 'Running…';
+  await new Promise(r => setTimeout(r, 30)); const t0 = performance.now();
   try {
-    const p = { ...card.params }; if (p.point === 'custom' || Object.values(p).includes('custom')) p._pt = card.params._custom;
+    const p = { ...card.params }; if (Object.values(p).includes('custom')) p._pt = card.params._custom;
     const res = await card.B.run(p, ctx, msg => st.textContent = msg);
-    st.textContent = `Done in ${((performance.now() - t0) / 1000).toFixed(2)} s`;
-    if (res?.html) out.insertAdjacentHTML('beforeend', res.html);
-    for (const n of res?.nodes || []) out.appendChild(n);
-    if (res?.read) out.insertAdjacentHTML('beforeend', `<div class="read">${res.read}</div>`);
-    card.ran = true; markRecipe(card);
+    const secs = ((performance.now() - t0) / 1000).toFixed(2); st.textContent = `Done in ${secs} s · result on the right`;
+    addResult(card.B, res, secs, p);
   } catch (e) { console.error(e); st.className = 'status err'; st.textContent = e.message || String(e); }
   btn.disabled = false;
 }
 
-// ---------------------------------------------------------------- recipes (guided mode)
-function drawRecipe() {
-  const box = $('#recipebox'); if (state.mode !== 'guided') { box.innerHTML = ''; return; }
-  const list = RECIPES[state.geo]; const r = state.recipe || list[0]; state.recipe = r;
-  const done = new Set(state.pipeline.filter(c => c.ran && c.recipeStep && c.recipeStep.r === r.id).map(c => c.recipeStep.i));
-  const next = r.steps.findIndex((_, i) => !done.has(i) && !state.pipeline.some(c => c.recipeStep && c.recipeStep.r === r.id && c.recipeStep.i === i));
-  box.innerHTML = `<div class="recipe"><label for="recipesel" class="status">Guided recipe</label><select id="recipesel">${list.map(x => `<option value="${x.id}" ${x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select><p>${r.why}</p>${(NEWS[r.id[1]] || []).map(n => `<a class="news" href="${n.url}" target="_blank" rel="noopener"><span>In the news · ${esc(n.src)} · ${esc(n.date)}</span><b>${esc(n.head)}</b><small>${esc(n.link)}</small></a>`).join('')}<ol class="steps">${r.steps.map((s, i) => `<li class="${done.has(i) ? 'done' : i === next ? 'next' : ''}"><i>${i + 1}</i><span>${s.say}</span></li>`).join('')}</ol>${next >= 0 ? `<button class="nextbtn" id="nextstep">Add step ${next + 1}: ${esc(BLOCKS.find(b => b.id === r.steps[next].b).name)}</button>` : '<p><b>Recipe complete.</b> Switch to Free play to try your own data.</p>'}</div>`;
-  $('#recipesel').onchange = e => { state.recipe = list.find(x => x.id === e.target.value); drawRecipe(); };
-  const nb = $('#nextstep'); if (nb) nb.onclick = () => { const s = r.steps[next]; addCard(s.b, s.p || {}, { r: r.id, i: next }); drawRecipe(); };
-  // dim blocks not used in this recipe
-  const used = new Set(r.steps.map(s => s.b)); document.querySelectorAll('.blk').forEach(b => b.classList.toggle('dim', !used.has(b.dataset.block)));
+// ---------- results drawer + history
+function addResult(B, res, secs, params) {
+  const g = GROUPS.find(x => x.id === B.group); const card = document.createElement('article'); card.className = 'rcard'; card.style.setProperty('--c', `var(${g.c})`);
+  const L = params?.layer ? state.layers.get(params.layer) : null;
+  card.innerHTML = `<header><b>${esc(B.name)}</b><small>${L ? esc(L.name.split(' (')[0]) + ' · ' : ''}${secs} s</small></header>`;
+  if (res?.html) card.insertAdjacentHTML('beforeend', res.html);
+  for (const n of res?.nodes || []) card.appendChild(n);
+  if (res?.read) card.insertAdjacentHTML('beforeend', `<div class="read">${res.read}</div>`);
+  $('#reslist').prepend(card); $('#results').hidden = false; requestAnimationFrame(() => map.resize());
+  state.runs.push({ B, card });
+  const h = $('#history'); h.querySelector('.empty')?.remove();
+  const li = document.createElement('li'); li.innerHTML = `<button><b>${esc(B.name)}</b><small>${L ? esc(L.name.split(' (')[0]) : ''}</small></button>`;
+  li.querySelector('button').onclick = () => { $('#results').hidden = false; card.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  h.prepend(li);
 }
-function markRecipe(card) { if (card.recipeStep) drawRecipe(); }
+$('#closeres').onclick = () => { $('#results').hidden = true; requestAnimationFrame(() => map.resize()); };
 
-// ---------------------------------------------------------------- top bar
-function clearAll() { for (const id of [...state.layers.keys()]) removeMapLayers(id); state.layers.clear(); state.pipeline = []; document.querySelectorAll('#pipeline .card').forEach(c => c.remove()); refreshLayerList(); updateCount(); $('#legend').hidden = true; }
-function setGeo(g) { if (g === state.geo) return; state.geo = g; state.recipe = null; clearAll(); document.querySelectorAll('[data-geo]').forEach(b => b.classList.toggle('on', b.dataset.geo === g)); map.flyTo({ center: GEO[g].center, zoom: GEO[g].zoom }); drawRecipe(); }
-function setMode(m) { state.mode = m; document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === m)); if (m === 'free') document.querySelectorAll('.blk').forEach(b => b.classList.remove('dim')); drawRecipe(); }
+// ---------- layer cards
+const swatch = L => L.kind === 'raster' ? 'linear-gradient(90deg,#c8b88a,#5aa845,#14532d)' : (L.style.mode === 'cat' || L.style.mode === 'seq' || L.style.mode === 'div') ? 'conic-gradient(#2347b8,#c2410c,#0f7a73,#2347b8)' : (L.style.mode === 'heat' ? 'radial-gradient(#dc2626,#fde68a)' : (L.style.color || css('--accent')));
+function drawLayerCards() {
+  const box = $('#layercards');
+  if (!state.layers.size) { box.innerHTML = '<p class="empty">No layers yet. Click <b>Add data</b>, or drop a file on the map.</p>'; return; }
+  box.innerHTML = '';
+  for (const L of [...state.layers.values()].reverse()) {
+    const c = document.createElement('div'); c.className = 'lcard' + (L.visible ? '' : ' off'); c.dataset.layer = L.id;
+    const n = L.kind === 'raster' ? `${L.raster.w}×${L.raster.h} px` : `${L.fc.features.length.toLocaleString()} ${L.kind === 'point' ? 'points' : L.kind === 'polygon' ? 'areas' : 'lines'}`;
+    c.innerHTML = `<div class="lhead"><span class="lsw ${L.kind}" style="background:${swatch(L)}"></span><div class="lname"><b title="${esc(L.name)}">${esc(L.name)}</b><small>${n}${L.W ? ' · neighbours set' : ''}</small></div>
+      <button class="iconbtn" data-act="vis" aria-label="${L.visible ? 'Hide' : 'Show'} layer" title="${L.visible ? 'Hide' : 'Show'}">${L.visible ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M10.6 5.1A10 10 0 0112 5c7 0 11 7 11 7a18 18 0 01-3.2 3.9M6.1 6.1A18 18 0 001 12s4 7 11 7a10 10 0 004.9-1.3"/></svg>'}</button>
+      <button class="iconbtn" data-act="more" aria-label="More options" title="More">⋯</button></div>
+      <div class="lbody">${L.kind !== 'raster' ? `<label for="col-${L.id}">Colour by</label><select id="col-${L.id}"><option value="">Single colour</option>${allFields(L).filter(f => !f.startsWith('_')).map(f => `<option ${L.style.field === f ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>` : ''}
+      <div class="lmenu" hidden><button data-act="zoom">Zoom to</button>${L.kind !== 'raster' ? '<button data-act="table">Table</button><button data-act="csv">Download CSV</button><button data-act="geojson">Download GeoJSON</button>' : ''}<button data-act="remove">Remove</button></div></div>`;
+    c.querySelector('[data-act=vis]').onclick = () => { L.visible = !L.visible; render(L); drawLayerCards(); };
+    c.querySelector('[data-act=more]').onclick = () => { const m = c.querySelector('.lmenu'); m.hidden = !m.hidden; };
+    c.querySelector('[data-act=zoom]').onclick = () => fit(L);
+    c.querySelector('[data-act=remove]').onclick = () => { for (const s of ['fill', 'line', 'circle', 'ext', 'heat', 'ras', 'sel']) if (map.getLayer(`${L.id}-${s}`)) map.removeLayer(`${L.id}-${s}`); if (map.getSource(L.id)) map.removeSource(L.id); state.layers.delete(L.id); drawLayerCards(); $('#legend').hidden = true; };
+    const tb = c.querySelector('[data-act=table]'); if (tb) tb.onclick = () => openConfig('explore', { layer: L.id });
+    const dl = (name, text, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); };
+    const cs = c.querySelector('[data-act=csv]'); if (cs) cs.onclick = () => dl(`${L.id}.csv`, toCSV(L.fc), 'text/csv');
+    const gj = c.querySelector('[data-act=geojson]'); if (gj) gj.onclick = () => dl(`${L.id}.geojson`, JSON.stringify(L.fc), 'application/geo+json');
+    const sel = c.querySelector('select'); if (sel) sel.onchange = () => {
+      const f = sel.value; if (!f) return restyle(L, { mode: 'single' });
+      const v = vals(L, f); const num = v.some(Number.isFinite) && new Set(v).size > 12; restyle(L, { mode: num ? (v.some(x => x < 0) && v.some(x => x > 0) ? 'div' : 'seq') : 'cat', field: f, radius: L.style.radius });
+    };
+    // a layer card is also a drop target for analysis tiles
+    c.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('application/x-block')) { e.preventDefault(); c.classList.add('over'); } });
+    c.addEventListener('dragleave', () => c.classList.remove('over'));
+    c.addEventListener('drop', e => { const id = e.dataTransfer.getData('application/x-block'); c.classList.remove('over'); if (!id) return; e.preventDefault(); openConfig(id, { layer: L.id }); });
+    box.appendChild(c);
+  }
+}
+
+// ---------- add data dialog
+const dlg = $('#datadlg');
+function buildCatalog() {
+  $('#catalog').innerHTML = geo().data.map(d => `<button class="dcard" data-key="${d.key}"><span class="tag">${d.kind === 'raster' ? 'satellite raster · COG' : d.kind === 'polygon' ? 'areas' : 'points'}</span><b>${esc(d.name)}</b><small>${esc(d.src)}</small></button>`).join('');
+  $('#catalog').querySelectorAll('.dcard').forEach(b => b.onclick = async () => { dlg.close(); await loadDataset(b.dataset.key); });
+}
+async function loadDataset(key) {
+  const B = BLOCKS.find(b => b.id === 'load'); const D = geo().data.find(d => d.key === key);
+  toast(`Loading ${D.name}…`, 1500); const t0 = performance.now();
+  try { const res = await B.run({ dataset: key, format: D.tif ? 'tif' : $('#fmtsel').value }, ctx); addResult({ ...B, name: 'Added: ' + D.name.split(' (')[0] }, res, ((performance.now() - t0) / 1000).toFixed(2), {}); showTab('layers'); }
+  catch (e) { toast(e.message); }
+}
+async function uploadFile(file) {
+  const B = BLOCKS.find(b => b.id === 'upload'); const t0 = performance.now();
+  try { const res = await B.run({ file }, ctx); addResult({ ...B, name: 'Uploaded: ' + file.name }, res, ((performance.now() - t0) / 1000).toFixed(2), {}); showTab('layers'); }
+  catch (e) { toast(e.message, 5000); }
+}
+$('#adddata').onclick = () => { buildCatalog(); dlg.showModal(); };
+$('#dlgclose').onclick = () => dlg.close();
+$('#upfile').onchange = e => { const f = e.target.files[0]; if (f) { dlg.close(); uploadFile(f); } e.target.value = ''; };
+
+// ---------- map drop target: analysis tiles or files
+const veil = $('#dropveil'), mw = $('#mapwrap'); let dragDepth = 0;
+mw.addEventListener('dragenter', e => { dragDepth++; const t = e.dataTransfer.types; if (t.includes('application/x-block') || t.includes('Files')) { $('#dropmsg').textContent = t.includes('Files') ? 'Drop the file to add it as a layer' : 'Drop to set up this analysis'; veil.hidden = false; } });
+mw.addEventListener('dragleave', () => { if (--dragDepth <= 0) { veil.hidden = true; dragDepth = 0; } });
+mw.addEventListener('dragover', e => e.preventDefault());
+mw.addEventListener('drop', e => { e.preventDefault(); veil.hidden = true; dragDepth = 0; const id = e.dataTransfer.getData('application/x-block'); if (id) return openConfig(id); const f = e.dataTransfer.files?.[0]; if (f) uploadFile(f); });
+
+// ---------- top bar
+function clearAll() { for (const id of [...state.layers.keys()]) removeMapLayers(id); state.layers.clear(); drawLayerCards(); $('#legend').hidden = true; $('#reslist').innerHTML = ''; $('#results').hidden = true; $('#history').innerHTML = '<li class="empty">Analyses you run appear here.</li>'; state.cfg = null; showTab('layers'); requestAnimationFrame(() => map.resize()); }
+function setGeo(g) { if (g === state.geo) return; state.geo = g; clearAll(); document.querySelectorAll('[data-geo]').forEach(b => b.classList.toggle('on', b.dataset.geo === g)); $('#guide').href = g + '/'; map.flyTo({ center: GEO[g].center, zoom: GEO[g].zoom }); history.replaceState(null, '', '#' + g); }
 document.querySelectorAll('[data-geo]').forEach(b => b.onclick = () => setGeo(b.dataset.geo));
-document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
-$('#reset').onclick = () => { clearAll(); drawRecipe(); };
+$('#reset').onclick = clearAll;
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { styleReady = false; map.setStyle(baseStyle()); map.once('style.load', () => { styleReady = true; state.layers.forEach(render); }); });
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (GEO[h]) setGeo(h); });
 
-buildPalette(); drawRecipe();
+buildTiles(); drawLayerCards();
 const hashGeo = location.hash.slice(1); if (GEO[hashGeo]) setGeo(hashGeo);
+// expose for the lab manual's screenshots and for curious students
+window.LLui = { openConfig, loadDataset, showTab, runCfg: () => runCfg(state.cfg), setGeo };

@@ -6,15 +6,17 @@ A drag-and-drop workbench for spatial data and location analytics, built for the
 
 **Watch first:** https://quantng.github.io/location-lab/explainer/ (animated explainer, 14 steps) · video: `explainer/Location-Analytics-Animated.mp4`
 
-**Lab manual:** https://quantng.github.io/location-lab/lab/
+**Country guides** (place primer, data, ideas, every lab step with screenshots): [India · Gurugram](https://quantng.github.io/location-lab/india/) · [Singapore](https://quantng.github.io/location-lab/singapore/)
+
+**Companion PDFs** (theory first, then the labs): [India](docs/Location-Analytics-Companion-India.pdf) · [Singapore](docs/Location-Analytics-Companion-Singapore.pdf)
 
 Everything runs in your browser and files you upload never leave your laptop.
 
 ## What it does
 
-Pick a geography (India · Gurugram or Singapore), then either follow a **guided recipe** or use **free play**. Drag blocks into the pipeline, press **Run**, and watch the map, charts and tables update.
+Pick a country in the top bar. **Layers → + Add data** loads a dataset (or drop your own file on the map). In **Analysis**, drag a tool onto the map or onto a layer card, press **Run**, and read the map, legend and Results drawer.
 
-| Family | Blocks |
+| Family | Tools |
 |---|---|
 | Data | Load sample data (GeoJSON, GeoParquet, FlatGeobuf, COG), upload your file, explore, colour, download |
 | Spatial data | Nearest to a point, SQL (DuckDB in the browser), box filter then distance, spatial join, H3 hexagons, heatmap, NDVI zonal statistics |
