@@ -1,0 +1,942 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Location Lab Hands-on</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one long lab manual — geography tabs, recipe sections, each step a "Do this" / "You should see" pair */
+:root{--bg:#fff;--ink:#14171c;--mute:#5c6571;--line:#dde1e6;--soft:#f3f5f7;--accent:#2347b8;--hot:#c2410c;
+--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 var(--body)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 60px}
+h1{font:800 clamp(30px,4.4vw,48px)/1.05 var(--display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:19px;max-width:70ch;color:var(--mute);margin:.5em 0 1em}
+.start-box{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:18px 0 26px}
+.start-box div{border:1.5px solid var(--line);border-radius:8px;padding:14px 16px}
+.start-box b{display:block;font:700 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:4px}
+a{color:var(--accent)}.go{display:inline-block;background:var(--ink);color:#fff;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:8px}
+.tabs{display:flex;gap:8px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5;border-bottom:1px solid var(--line)}
+.tabs button{font:700 16px var(--body);border:1.5px solid var(--ink);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 16px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff}
+.toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:18px 0}
+.toc a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-weight:600}
+.toc a b{font:700 14px var(--mono);color:var(--mute)}
+.recipe{margin-top:46px;padding-top:10px;border-top:3px solid var(--ink)}
+.eyebrow{font:600 13px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.recipe h3{font:800 32px/1.1 var(--display);margin:.2em 0 .3em;text-wrap:balance}.why{font-size:18px;margin:0 0 12px;max-width:70ch}
+details>summary{cursor:pointer;font-weight:700}
+.concepts,.data{border:1.5px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0}
+dl{display:grid;gap:8px;margin:10px 0 0}.term{display:grid;grid-template-columns:200px minmax(0,1fr);gap:12px}
+dt{font-weight:700}dd{margin:0}@media(max-width:640px){.term{grid-template-columns:1fr;gap:0}}
+figure.start{margin:16px 0}figure img,.shot img{width:100%;height:auto;border:1.5px solid var(--line);border-radius:6px;display:block}
+figcaption{color:var(--mute);font-size:15px;margin-top:6px}
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:22px}
+.step{border:1.5px solid var(--line);border-radius:10px;padding:16px 18px}
+.sh{display:flex;gap:14px;align-items:flex-start}.n{font:800 24px var(--display);min-width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center}
+.sh h4{margin:2px 0;font:700 20px/1.25 var(--body)}.blk{margin:0;color:var(--mute);font-size:15px}
+.step details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.step summary{font:700 13px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.do summary{color:var(--accent)}.see summary{color:var(--hot)}
+.how{margin:8px 0;padding-left:20px}
+table.set{border-collapse:collapse;font-size:15px;margin:6px 0}table.set th{text-align:left;color:var(--mute);font-weight:600;padding:3px 14px 3px 0}table.set td{font-weight:700}
+pre.code{background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:12px;font:14px/1.45 var(--mono);overflow-x:auto}
+.kpis{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kpi{background:var(--soft);border-radius:8px;padding:8px 12px}
+.kpi b{display:block;font:800 24px/1.1 var(--display);font-variant-numeric:tabular-nums}.kpi span{color:var(--mute);font-size:13px}
+.tw{overflow-x:auto}table.res{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}table.res th,table.res td{border-bottom:1px solid var(--line);padding:4px 10px;text-align:left;white-space:nowrap}table.res th{background:var(--soft)}
+.read{border-left:4px solid var(--hot);background:#fff7f2;padding:10px 12px;margin:8px 0 0;border-radius:0 6px 6px 0}
+.shot{display:block;cursor:zoom-in;margin-top:8px}
+.lb{position:fixed;inset:0;background:rgba(10,12,16,.92);display:flex;align-items:center;justify-content:center;z-index:50;cursor:zoom-out;padding:16px}.lb img{max-width:100%;max-height:100%}
+footer{margin-top:50px;color:var(--mute);font-size:14px;border-top:1px solid var(--line);padding-top:14px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style></head><body><div class="wrap">
+<div class="eyebrow">LMGB · Location analytics lab</div>
+<h1>Location Lab, step by step</h1>
+<p class="lede">Every block you will use in this session, run on real data from Gurugram and Singapore. Each step shows what to click, the settings, and the screen and numbers you should get.</p>
+<div class="start-box">
+ <div><b>1 · Open the tool</b><a class="go" href="https://quantng.github.io/location-lab/">Open Location Lab</a><br><small>Chrome or Edge on a laptop. Nothing to install.</small></div>
+ <div><b>2 · Pick a geography</b>Top bar: <b>India · Gurugram</b> or <b>Singapore</b>. Keep <b>Guided</b> on.</div>
+ <div><b>3 · Follow a recipe</b>Choose a recipe, press <b>Add step</b>, check settings, press <b>Run</b>. Click features on the map to inspect them.</div>
+</div>
+<div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-g="india">India · Gurugram</button><button role="tab" aria-selected="false" data-g="singapore">Singapore</button></div>
+<div class="geo" id="geo-india" role="tabpanel">
+ <nav class="toc"><a href="#i1"><b>1</b>Spatial data in seven moves</a><a href="#i2"><b>2</b>Neighbours and spatial lag</a><a href="#i3"><b>3</b>Is the pattern random?</a><a href="#i4"><b>4</b>Autocorrelation and hotspots</a><a href="#i5"><b>5</b>Clusters for territories</a><a href="#i6"><b>6</b>From samples to surfaces</a><a href="#i7"><b>7</b>What explains café density?</a></nav>
+ <details class="data"><summary>The data for India (already inside the tool)</summary><div class="tw"><table class="res"><thead><tr><th>Name in the tool</th><th>What</th><th>Source</th><th>Download</th></tr></thead><tbody><tr><td><code>gurugram_cafes</code></td><td>459 cafés and restaurants, Gurugram</td><td>OpenStreetMap via overpass-turbo.eu</td><td><a href="https://quantng.github.io/location-lab/data/india/gurugram_cafes.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/india/gurugram_cafes.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/india/gurugram_cafes.fgb">FlatGeobuf</a></td></tr><tr><td><code>ncr_metro_stations</code></td><td>275 metro stations, Delhi NCR</td><td>OpenStreetMap</td><td><a href="https://quantng.github.io/location-lab/data/india/ncr_metro_stations.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/india/ncr_metro_stations.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/india/ncr_metro_stations.fgb">FlatGeobuf</a></td></tr><tr><td><code>ncr_districts</code></td><td>25 NCR districts</td><td>geoBoundaries IND ADM2</td><td><a href="https://quantng.github.io/location-lab/data/india/ncr_districts.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/india/ncr_districts.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/india/ncr_districts.fgb">FlatGeobuf</a></td></tr><tr><td><code>mdi_campus</code></td><td>MDI campus outline</td><td>OpenStreetMap way 23197218</td><td><a href="https://quantng.github.io/location-lab/data/india/mdi_campus.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/india/mdi_campus.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/india/mdi_campus.fgb">FlatGeobuf</a></td></tr><tr><td><code>mdi_ndvi_20241025</code></td><td>NDVI raster around MDI, 25 Oct 2024</td><td>Sentinel-2 L2A, Earth Search (AWS)</td><td><a href="https://quantng.github.io/location-lab/data/india/mdi_ndvi_20241025.tif">COG</a></td></tr></tbody></table></div></details>
+ <section class="recipe" id="i1">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 1</span><h3>Spatial data in seven moves</h3><p class="why">Recap of the last session on one dataset: load, measure, filter, join, bin, smooth and read a satellite image.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Spatial data</dt><dd>Any record that also says where on Earth it is.</dd></div><div class="term"><dt>Haversine distance</dt><dd>The shortest distance between two latitude–longitude points over the curved Earth.</dd></div><div class="term"><dt>Spatial join</dt><dd>Linking rows because their shapes relate (a point inside an outline), not because they share an ID.</dd></div><div class="term"><dt>H3</dt><dd>Uber’s global grid of numbered hexagons; finer resolutions split each cell into about seven.</dd></div><div class="term"><dt>NDVI</dt><dd>(near-infrared − red) ÷ (near-infrared + red), per satellite pixel, from −1 to +1. Higher means greener.</dd></div></dl></details>
+ <figure class="start"><img src="img/i1_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>1 · Spatial data in seven moves</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i1-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the 459 cafés and restaurants.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_01.webp" data-zoom><img src="img/i1_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>459</b><span>rows</span></div><div class="kpi"><b>102 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>80 KB</td><td></td></tr><tr><td>GeoJSON</td><td>102 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>32 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i1-2">
+ <div class="sh"><span class="n">2</span><div><h4>Explore the table: fields, blanks, colour by type.</h4><p class="blk">Block: <b>Explore the table</b> · Fields, blanks and a preview. Optionally colour the map by a category.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Explore the table</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Colour by</th><td>type</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_02.webp" data-zoom><img src="img/i1_02.webp" alt="Location Lab after running Explore the table" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><div class="tw"><table class="res"><thead><tr><th>Field</th><th>Type</th><th>Unique</th><th>Blank</th></tr></thead><tbody><tr><td>name</td><td>text</td><td>340</td><td>21</td></tr><tr><td>type</td><td>text</td><td>3</td><td>0</td></tr><tr><td>cuisine</td><td>text</td><td>75</td><td>208</td></tr><tr><td>latitude</td><td>number</td><td>446</td><td>0</td></tr><tr><td>longitude</td><td>number</td><td>437</td><td>0</td></tr><tr><td>name</td><td>type</td><td>cuisine</td><td>latitude</td><td>longitude</td></tr></tbody></table></div><p class="read">Locations are complete for all 459 rows, but name is blank in 21, cuisine is blank in 208. Check attributes before deciding anything.</p>
+ </div></details>
+</li><li class="step" id="i1-3">
+ <div class="sh"><span class="n">3</span><div><h4>Nearest places to MDI, with 1, 3 and 5 km rings.</h4><p class="blk">Block: <b>Nearest to a point</b> · Distance from a chosen point to every feature over the curved Earth, with 1, 3 and 5 km rings.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Nearest to a point</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>From</th><td>MDI Gurgaon campus centre</td></tr><tr><th>Show nearest</th><td>5</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_03.webp" data-zoom><img src="img/i1_03.webp" alt="Location Lab after running Nearest to a point" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>16</b><span>within 1 km</span></div><div class="kpi"><b>124</b><span>within 3 km</span></div><div class="kpi"><b>246</b><span>within 5 km</span></div></div><div class="tw"><table class="res"><thead><tr><th>#</th><th>Name</th><th>km</th></tr></thead><tbody><tr><td>1</td><td>Swagath</td><td>0.50</td></tr><tr><td>2</td><td>ADDA</td><td>0.51</td></tr><tr><td>3</td><td>Gung the palace</td><td>0.51</td></tr><tr><td>4</td><td>(no name)</td><td>0.56</td></tr><tr><td>5</td><td>Spaghetti Kitchen &amp; Bar</td><td>0.57</td></tr></tbody></table></div><p class="read">Nearest to MDI Gurgaon campus centre: Swagath, 0.50 km. A new field dist_km was added to every row.</p>
+ </div></details>
+</li><li class="step" id="i1-4">
+ <div class="sh"><span class="n">4</span><div><h4>Ask the same question in SQL.</h4><p class="blk">Block: <b>Ask in SQL</b> · Query any layer with SQL (DuckDB, running in your browser). The layer name is the table name.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Ask in SQL</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>SQL query</th><td>(query shown in the box)</td></tr></tbody></table><pre class="code">SELECT name,
+  round(2 * 6371 * asin(sqrt(
+    pow(sin(radians(latitude - 28.47229) / 2), 2) +
+    cos(radians(28.47229)) * cos(radians(latitude)) *
+    pow(sin(radians(longitude - 77.0585) / 2), 2))), 2) AS km,
+  latitude, longitude
+FROM gurugram_cafes
+ORDER BY km
+LIMIT 5;</pre>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_04.webp" data-zoom><img src="img/i1_04.webp" alt="Location Lab after running Ask in SQL" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><div class="tw"><table class="res"><thead><tr><th>name</th><th>km</th><th>latitude</th><th>longitude</th></tr></thead><tbody><tr><td>MDI Gurgaon campus centre</td><td>0</td><td>28.5</td><td>77.1</td></tr></tbody></table></div>
+ </div></details>
+</li><li class="step" id="i1-5">
+ <div class="sh"><span class="n">5</span><div><h4>Box filter, then exact 3 km distance (150 → 124).</h4><p class="blk">Block: <b>Box filter, then distance</b> · A cheap square filter first, then the exact distance on what is left: how spatial indexes work.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 5</b> in the recipe panel (or drag <b>Box filter, then distance</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Centre</th><td>MDI Gurgaon campus centre</td></tr><tr><th>Radius (km)</th><td>3</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_05.webp" data-zoom><img src="img/i1_05.webp" alt="Location Lab after running Box filter, then distance" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>150</b><span>in the box</span></div><div class="kpi"><b>124</b><span>within 3 km</span></div><div class="kpi"><b>26</b><span>dropped from corners</span></div></div><p class="read">Step 1 used four cheap number comparisons per row. Step 2 computed the exact distance only for the 150 rows in the box, not all 459.</p>
+ </div></details>
+</li><li class="step" id="i1-6">
+ <div class="sh"><span class="n">6</span><div><h4>Load the NCR district outlines.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 6</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>NCR districts (geoBoundaries)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_06.webp" data-zoom><img src="img/i1_06.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>25</b><span>rows</span></div><div class="kpi"><b>137 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>86 KB</td><td></td></tr><tr><td>GeoJSON</td><td>137 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>97 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i1-7">
+ <div class="sh"><span class="n">7</span><div><h4>Spatial join: which district is each place in?</h4><p class="blk">Block: <b>Spatial join</b> · Tag each point with the polygon it falls inside, and count points per polygon.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 7</b> in the recipe panel (or drag <b>Spatial join</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Polygons</th><td>NCR districts (geoBoundaries)</td></tr><tr><th>Polygon name field</th><td>district</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_07.webp" data-zoom><img src="img/i1_07.webp" alt="Location Lab after running Spatial join" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">3 polygons received points. The field district was added to each point; n_points to each polygon.</p>
+ </div></details>
+</li><li class="step" id="i1-8">
+ <div class="sh"><span class="n">8</span><div><h4>Bin into H3 hexagons and raise them in 3D.</h4><p class="blk">Block: <b>H3 hexagon bins</b> · Drop points into Uber’s global hexagon grid and count per cell. Optionally include empty cells.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 8</b> in the recipe panel (or drag <b>H3 hexagon bins</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Resolution</th><td>8 · ~0.74 km²</td></tr><tr><th>Also average</th><td>— none —</td></tr><tr><th>Empty cells</th><td>Leave out</td></tr><tr><th>3D columns</th><td>Yes</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_08.webp" data-zoom><img src="img/i1_08.webp" alt="Location Lab after running H3 hexagon bins" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>91</b><span>occupied cells</span></div><div class="kpi"><b>36</b><span>in the busiest cell</span></div></div><p class="read">Each cell has a permanent ID (e.g. 883da11ae1fffff), so any other table binned the same way joins on that text.</p>
+ </div></details>
+</li><li class="step" id="i1-9">
+ <div class="sh"><span class="n">9</span><div><h4>Smooth the points into a heatmap.</h4><p class="blk">Block: <b>Heatmap</b> · Spread each point into a soft glow and add them up: density at a glance.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 9</b> in the recipe panel (or drag <b>Heatmap</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Radius (pixels)</th><td>22</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_09.webp" data-zoom><img src="img/i1_09.webp" alt="Location Lab after running Heatmap" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">A heatmap shows where points crowd together. It is a picture, not a test: the hotspot blocks tell you whether a crowd is more than chance.</p>
+ </div></details>
+</li><li class="step" id="i1-10">
+ <div class="sh"><span class="n">10</span><div><h4>Load the NDVI satellite raster (COG).</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 10</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>NDVI around MDI, Sentinel-2, 25 Oct 2024</td></tr><tr><th>Format</th><td>Cloud-Optimised GeoTIFF (COG)</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_10.webp" data-zoom><img src="img/i1_10.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>394</b><span>× 311 pixels</span></div><div class="kpi"><b>512 KB</b><span>file size</span></div><div class="kpi"><b>45 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>COG</td><td>512 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">A COG is a GeoTIFF laid out in 256-pixel tiles with overviews, so tools fetch only the tiles on screen.</p>
+ </div></details>
+</li><li class="step" id="i1-11">
+ <div class="sh"><span class="n">11</span><div><h4>Load the MDI campus outline.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 11</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>MDI campus outline (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_11.webp" data-zoom><img src="img/i1_11.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>1</b><span>rows</span></div><div class="kpi"><b>1 KB</b><span>file size</span></div><div class="kpi"><b>0 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>2 KB</td><td></td></tr><tr><td>GeoJSON</td><td>1 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>10 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i1-12">
+ <div class="sh"><span class="n">12</span><div><h4>Zonal statistics: how green is the campus?</h4><p class="blk">Block: <b>NDVI zonal statistics</b> · Summarise the satellite greenness pixels inside an outline and highlight vegetation.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 12</b> in the recipe panel (or drag <b>NDVI zonal statistics</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Raster</th><td>NDVI around MDI, Sentinel-2, 25 Oct 2024</td></tr><tr><th>Outline</th><td>MDI campus outline (OpenStreetMap)</td></tr><tr><th>Vegetation above</th><td>0.3</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i1_12.webp" data-zoom><img src="img/i1_12.webp" alt="Location Lab after running NDVI zonal statistics" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>1,399</b><span>pixels inside</span></div><div class="kpi"><b>0.37</b><span>mean NDVI</span></div><div class="kpi"><b>59%</b><span>above 0.3</span></div></div><p class="read">NDVI = (NIR − Red) ÷ (NIR + Red). Each pixel is about 9 m across. Pixels at or below 0.3 are faded on the map.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="i2">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 2</span><h3>Neighbours and spatial lag</h3><p class="why">Before testing any pattern, decide who counts as a neighbour. Everything after this reuses that choice.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Spatial weights</dt><dd>A table that says, for every feature, who its neighbours are. Choices: the k nearest, everyone within a distance, or features that touch.</dd></div><div class="term"><dt>Row-standardised</dt><dd>Each feature’s neighbours share a total weight of 1, so “neighbours’ average” is a fair average whatever the number of neighbours.</dd></div><div class="term"><dt>Spatial lag</dt><dd>The neighbours’ average of a value: “how is my neighbourhood doing?”</dd></div></dl></details>
+ <figure class="start"><img src="img/i2_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>2 · Neighbours and spatial lag</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i2-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the cafés.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i2_01.webp" data-zoom><img src="img/i2_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>459</b><span>rows</span></div><div class="kpi"><b>102 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>80 KB</td><td></td></tr><tr><td>GeoJSON</td><td>102 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>32 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i2-2">
+ <div class="sh"><span class="n">2</span><div><h4>Count cafés per hexagon, including empty hexagons.</h4><p class="blk">Block: <b>H3 hexagon bins</b> · Drop points into Uber’s global hexagon grid and count per cell. Optionally include empty cells.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>H3 hexagon bins</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Resolution</th><td>8 · ~0.74 km²</td></tr><tr><th>Also average</th><td>— none —</td></tr><tr><th>Empty cells</th><td>Include (needed for statistics)</td></tr><tr><th>3D columns</th><td>No</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i2_02.webp" data-zoom><img src="img/i2_02.webp" alt="Location Lab after running H3 hexagon bins" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>91</b><span>occupied cells</span></div><div class="kpi"><b>36</b><span>in the busiest cell</span></div><div class="kpi"><b>413</b><span>empty cells</span></div></div><p class="read">Each cell has a permanent ID (e.g. 883da11ae1fffff), so any other table binned the same way joins on that text.</p>
+ </div></details>
+</li><li class="step" id="i2-3">
+ <div class="sh"><span class="n">3</span><div><h4>Build contiguity weights: each hexagon’s 6 touching cells. Click a hexagon to see them.</h4><p class="blk">Block: <b>Spatial weights</b> · Decide who counts as a neighbour. Every block in Patterns, Hotspots and Explain reuses this.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Spatial weights</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Neighbours are</th><td>touching H3 hexagons</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i2_03.webp" data-zoom><img src="img/i2_03.webp" alt="Location Lab after running Spatial weights" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>5.6</b><span>neighbours on average</span></div><div class="kpi"><b>0–6</b><span>range</span></div><div class="kpi"><b>2</b><span>with none (islands)</span></div></div><p class="read">Neighbours: hexagon contiguity (6 touching cells). Weights are row-standardised, so each feature’s neighbours share a total weight of 1. Click any feature on the map to highlight its neighbours. Islands have no neighbours and are left out of the tests.</p>
+ </div></details>
+</li><li class="step" id="i2-4">
+ <div class="sh"><span class="n">4</span><div><h4>Spatial lag: the average café count of each hexagon’s neighbours.</h4><p class="blk">Block: <b>Spatial lag</b> · The average of a value among each feature’s neighbours: “how is my neighbourhood doing?”</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Spatial lag</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Value</th><td>count</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i2_04.webp" data-zoom><img src="img/i2_04.webp" alt="Location Lab after running Spatial lag" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Map now shows lag_count. Correlation between a feature’s own value and its neighbours’ average: 0.47. A strong positive value is the first sign of spatial autocorrelation.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="i3">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 3</span><h3>Is the pattern random?</h3><p class="why">Compare the real cafés with what pure chance would give, at many distances.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Complete spatial randomness</dt><dd>The benchmark: points scattered by pure chance over the same area.</dd></div><div class="term"><dt>Nearest-neighbour ratio R</dt><dd>Observed average distance to the nearest point ÷ the distance expected if random. Below 1 clustered, above 1 dispersed.</dd></div><div class="term"><dt>Ripley’s L</dt><dd>Repeats the comparison at many distances, so you see at which scale clustering happens. The grey band is what 19 random patterns produce.</dd></div></dl></details>
+ <figure class="start"><img src="img/i3_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>3 · Is the pattern random?</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i3-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the cafés.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i3_01.webp" data-zoom><img src="img/i3_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>459</b><span>rows</span></div><div class="kpi"><b>102 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>80 KB</td><td></td></tr><tr><td>GeoJSON</td><td>102 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>32 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i3-2">
+ <div class="sh"><span class="n">2</span><div><h4>Nearest-neighbour ratio and Ripley’s L against 19 random patterns.</h4><p class="blk">Block: <b>Point pattern test</b> · Clark–Evans nearest-neighbour ratio and Ripley’s L, against 19 random patterns in the same area.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Point pattern test</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i3_02.webp" data-zoom><img src="img/i3_02.webp" alt="Location Lab after running Point pattern test" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.30</b><span>nearest-neighbour ratio R</span></div><div class="kpi"><b>-28.9</b><span>z-score</span></div><div class="kpi"><b>Clustered</b><span>verdict</span></div></div><p class="read">Average nearest neighbour: 144 m observed vs 487 m expected if random. R below 1 means clustered, above 1 dispersed. In the chart, the line above the grey band means more clustering than chance at that distance.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="i4">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 4</span><h3>Autocorrelation and hotspots</h3><p class="why">Do busy hexagons sit next to busy hexagons? Where exactly are the significant hotspots?</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Spatial autocorrelation</dt><dd>Whether similar values sit next to each other (Tobler: near things are more related than distant things).</dd></div><div class="term"><dt>Moran’s I</dt><dd>One number for the whole map. Positive: similar values cluster. Near zero: random. Negative: neighbours differ.</dd></div><div class="term"><dt>Permutation test</dt><dd>Shuffle the values across locations many times; if the real I beats almost all shuffles, the pattern is not chance.</dd></div><div class="term"><dt>LISA</dt><dd>Local Moran’s I for each feature: High-High hotspots, Low-Low coldspots, High-Low and Low-High outliers.</dd></div><div class="term"><dt>Getis-Ord Gi*</dt><dd>Is the total around a feature (itself included) much higher or lower than chance? Reported as a z-score: 1.96 is 95% confidence.</dd></div></dl></details>
+ <figure class="start"><img src="img/i4_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>4 · Autocorrelation and hotspots</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i4-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the cafés.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i4_01.webp" data-zoom><img src="img/i4_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>459</b><span>rows</span></div><div class="kpi"><b>102 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>80 KB</td><td></td></tr><tr><td>GeoJSON</td><td>102 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>32 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i4-2">
+ <div class="sh"><span class="n">2</span><div><h4>Count per hexagon, empty cells included.</h4><p class="blk">Block: <b>H3 hexagon bins</b> · Drop points into Uber’s global hexagon grid and count per cell. Optionally include empty cells.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>H3 hexagon bins</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Resolution</th><td>8 · ~0.74 km²</td></tr><tr><th>Also average</th><td>— none —</td></tr><tr><th>Empty cells</th><td>Include (needed for statistics)</td></tr><tr><th>3D columns</th><td>No</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i4_02.webp" data-zoom><img src="img/i4_02.webp" alt="Location Lab after running H3 hexagon bins" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>91</b><span>occupied cells</span></div><div class="kpi"><b>36</b><span>in the busiest cell</span></div><div class="kpi"><b>413</b><span>empty cells</span></div></div><p class="read">Each cell has a permanent ID (e.g. 883da11ae1fffff), so any other table binned the same way joins on that text.</p>
+ </div></details>
+</li><li class="step" id="i4-3">
+ <div class="sh"><span class="n">3</span><div><h4>Contiguity weights.</h4><p class="blk">Block: <b>Spatial weights</b> · Decide who counts as a neighbour. Every block in Patterns, Hotspots and Explain reuses this.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Spatial weights</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Neighbours are</th><td>touching H3 hexagons</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i4_03.webp" data-zoom><img src="img/i4_03.webp" alt="Location Lab after running Spatial weights" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>5.6</b><span>neighbours on average</span></div><div class="kpi"><b>0–6</b><span>range</span></div><div class="kpi"><b>2</b><span>with none (islands)</span></div></div><p class="read">Neighbours: hexagon contiguity (6 touching cells). Weights are row-standardised, so each feature’s neighbours share a total weight of 1. Click any feature on the map to highlight its neighbours. Islands have no neighbours and are left out of the tests.</p>
+ </div></details>
+</li><li class="step" id="i4-4">
+ <div class="sh"><span class="n">4</span><div><h4>Global Moran’s I with 999 random shuffles.</h4><p class="blk">Block: <b>Global Moran’s I</b> · One number for the whole map: do similar values sit next to each other? Tested against 999 shuffles.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Global Moran’s I</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Value</th><td>count</td></tr><tr><th>Shuffles</th><td>999</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i4_04.webp" data-zoom><img src="img/i4_04.webp" alt="Location Lab after running Global Moran’s I" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.273</b><span>Moran’s I</span></div><div class="kpi"><b>-0.002</b><span>expected if random</span></div><div class="kpi"><b>0.001</b><span>pseudo p-value</span></div></div><p class="read">I = 0.273 is positive and none of 999 random shuffles came close (p 0.001). High values cluster near high values and low near low. The slope of the line in the scatter is I.</p>
+ </div></details>
+</li><li class="step" id="i4-5">
+ <div class="sh"><span class="n">5</span><div><h4>Local Moran (LISA): hotspots, coldspots and outliers.</h4><p class="blk">Block: <b>Local Moran (LISA)</b> · Moran’s I for every feature: High-High hotspots, Low-Low coldspots, and outliers.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 5</b> in the recipe panel (or drag <b>Local Moran (LISA)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Value</th><td>count</td></tr><tr><th>Significance</th><td>95%</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i4_05.webp" data-zoom><img src="img/i4_05.webp" alt="Location Lab after running Local Moran (LISA)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">High-High: high values among high neighbours (hotspots). Low-Low: coldspots. High-Low: a strong performer surrounded by weak ones. Low-High: a weak spot in a strong area, often an opening.</p>
+ </div></details>
+</li><li class="step" id="i4-6">
+ <div class="sh"><span class="n">6</span><div><h4>Getis-Ord Gi*: hotspots at 90/95/99% confidence.</h4><p class="blk">Block: <b>Hotspots (Getis-Ord Gi*)</b> · Is the sum around each feature (itself included) much higher or lower than chance?</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 6</b> in the recipe panel (or drag <b>Hotspots (Getis-Ord Gi*)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Value</th><td>count</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i4_06.webp" data-zoom><img src="img/i4_06.webp" alt="Location Lab after running Hotspots (Getis-Ord Gi*)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">A heatmap shows where things are dense. Gi* tells you where the density is too strong to be chance (z above 1.96 is 95% confidence). Use it to pick priority zones.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="i5">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 5</span><h3>Clusters for territories</h3><p class="why">Group nearby outlets into market clusters and flag isolated ones.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>DBSCAN</dt><dd>Density-based clustering: a point joins a cluster if enough points (minimum count) sit within a distance (ε). Isolated points are labelled noise.</dd></div><div class="term"><dt>Why not k-means</dt><dd>DBSCAN does not need the number of clusters in advance, handles odd shapes and flags outliers.</dd></div></dl></details>
+ <figure class="start"><img src="img/i5_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>5 · Clusters for territories</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i5-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the cafés.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i5_01.webp" data-zoom><img src="img/i5_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>459</b><span>rows</span></div><div class="kpi"><b>102 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>80 KB</td><td></td></tr><tr><td>GeoJSON</td><td>102 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>32 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i5-2">
+ <div class="sh"><span class="n">2</span><div><h4>DBSCAN: clusters of at least 6 places within 400 m.</h4><p class="blk">Block: <b>Density clusters (DBSCAN)</b> · Group points that have enough neighbours within a distance; the rest are labelled noise.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Density clusters (DBSCAN)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Within (km)</th><td>0.4</td></tr><tr><th>At least</th><td>6</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i5_02.webp" data-zoom><img src="img/i5_02.webp" alt="Location Lab after running Density clusters (DBSCAN)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>20</b><span>clusters</span></div><div class="kpi"><b>116</b><span>noise points</span></div><div class="kpi"><b>36</b><span>in the largest</span></div></div><p class="read">A point belongs to a cluster if at least 6 points sit within 0.4 km. Change the two numbers and watch clusters merge or split: the choice is a business decision about what “a market” means.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="i6">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 6</span><h3>From samples to surfaces</h3><p class="why">Estimate a value everywhere from a few samples, then check against the truth.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Interpolation</dt><dd>Estimating a value everywhere from values measured at a few places.</dd></div><div class="term"><dt>IDW</dt><dd>Inverse distance weighting: nearer samples count more (weight = 1 ÷ distance^power).</dd></div><div class="term"><dt>Variogram</dt><dd>How quickly similarity fades with distance. The range is where neighbours stop being informative.</dd></div><div class="term"><dt>Kriging</dt><dd>Uses the variogram to predict each cell and also gives a standard error map: where the estimate is reliable and where it is a guess.</dd></div></dl></details>
+ <figure class="start"><img src="img/i6_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>6 · From samples to surfaces</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i6-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the NDVI raster: this is the truth.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>NDVI around MDI, Sentinel-2, 25 Oct 2024</td></tr><tr><th>Format</th><td>Cloud-Optimised GeoTIFF (COG)</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i6_01.webp" data-zoom><img src="img/i6_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>394</b><span>× 311 pixels</span></div><div class="kpi"><b>512 KB</b><span>file size</span></div><div class="kpi"><b>31 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>COG</td><td>512 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">A COG is a GeoTIFF laid out in 256-pixel tiles with overviews, so tools fetch only the tiles on screen.</p>
+ </div></details>
+</li><li class="step" id="i6-2">
+ <div class="sh"><span class="n">2</span><div><h4>Keep only 300 random sample points.</h4><p class="blk">Block: <b>Sample a raster</b> · Keep only a few random pixels as points, to test how well a surface can be rebuilt.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Sample a raster</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Raster</th><td>NDVI around MDI, Sentinel-2, 25 Oct 2024</td></tr><tr><th>Samples</th><td>300</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i6_02.webp" data-zoom><img src="img/i6_02.webp" alt="Location Lab after running Sample a raster" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">300 of 122,534 pixels kept (0.2%). The original raster is hidden: it is the answer key for the next blocks.</p>
+ </div></details>
+</li><li class="step" id="i6-3">
+ <div class="sh"><span class="n">3</span><div><h4>IDW: rebuild the surface from the 300 samples.</h4><p class="blk">Block: <b>IDW surface</b> · Estimate every cell from nearby samples, giving closer samples more weight.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>IDW surface</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Sample points</th><td>300 samples of NDVI around MDI</td></tr><tr><th>Value</th><td>value</td></tr><tr><th>Power</th><td>2</td></tr><tr><th>Cell size (m)</th><td>30</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i6_03.webp" data-zoom><img src="img/i6_03.webp" alt="Location Lab after running IDW surface" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.237</b><span>error vs truth (RMSE)</span></div><div class="kpi"><b>300</b><span>samples used</span></div></div><p class="read">Compare with the hidden original: tick it on in the Layers box. IDW reproduces broad patterns but smears small features between samples.</p>
+ </div></details>
+</li><li class="step" id="i6-4">
+ <div class="sh"><span class="n">4</span><div><h4>Kriging: a surface plus its uncertainty.</h4><p class="blk">Block: <b>Kriging surface</b> · Fit how similarity fades with distance (variogram), then predict every cell with an uncertainty map.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Kriging surface</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Sample points</th><td>300 samples of NDVI around MDI</td></tr><tr><th>Value</th><td>value</td></tr><tr><th>Cell size (m)</th><td>30</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i6_04.webp" data-zoom><img src="img/i6_04.webp" alt="Location Lab after running Kriging surface" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.232</b><span>error vs truth (RMSE)</span></div></div><p class="read">Similarity fades out at about 0.54 km (the range). Beyond that, samples tell you nothing about each other. Tick on Kriging uncertainty in Layers: it is lowest next to samples and highest in the gaps, which a manager can use to decide where to collect more data.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="i7">
+ <div class="rh"><span class="eyebrow">India · Gurugram · Recipe 7</span><h3>What explains café density?</h3><p class="why">Regress café counts on access, then check whether space is still hiding in the errors.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>OLS</dt><dd>Ordinary least squares regression: one coefficient per variable for the whole map. Assumes errors are independent.</dd></div><div class="term"><dt>Residual Moran’s I</dt><dd>If the errors themselves cluster, OLS is missing something spatial.</dd></div><div class="term"><dt>Spatial lag model</dt><dd>Adds the neighbours’ y as a predictor (ρ): spillover between neighbours.</dd></div><div class="term"><dt>Spatial error model</dt><dd>Lets errors be correlated between neighbours (λ): shared factors the model does not measure.</dd></div><div class="term"><dt>GWR</dt><dd>Geographically weighted regression: a separate regression around every location, so each effect can vary across the map.</dd></div><div class="term"><dt>AIC</dt><dd>A score for comparing models on the same data; lower is better.</dd></div></dl></details>
+ <figure class="start"><img src="img/i7_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>7 · What explains café density?</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="i7-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the cafés.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_01.webp" data-zoom><img src="img/i7_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>459</b><span>rows</span></div><div class="kpi"><b>102 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>80 KB</td><td></td></tr><tr><td>GeoJSON</td><td>102 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>32 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i7-2">
+ <div class="sh"><span class="n">2</span><div><h4>Count per hexagon.</h4><p class="blk">Block: <b>H3 hexagon bins</b> · Drop points into Uber’s global hexagon grid and count per cell. Optionally include empty cells.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>H3 hexagon bins</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Cafés &amp; restaurants, Gurugram (OpenStreetMap)</td></tr><tr><th>Resolution</th><td>8 · ~0.74 km²</td></tr><tr><th>Also average</th><td>— none —</td></tr><tr><th>Empty cells</th><td>Include (needed for statistics)</td></tr><tr><th>3D columns</th><td>No</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_02.webp" data-zoom><img src="img/i7_02.webp" alt="Location Lab after running H3 hexagon bins" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>91</b><span>occupied cells</span></div><div class="kpi"><b>36</b><span>in the busiest cell</span></div><div class="kpi"><b>413</b><span>empty cells</span></div></div><p class="read">Each cell has a permanent ID (e.g. 883da11ae1fffff), so any other table binned the same way joins on that text.</p>
+ </div></details>
+</li><li class="step" id="i7-3">
+ <div class="sh"><span class="n">3</span><div><h4>Load the metro stations.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Metro stations, Delhi NCR (OpenStreetMap)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_03.webp" data-zoom><img src="img/i7_03.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>275</b><span>rows</span></div><div class="kpi"><b>51 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>43 KB</td><td></td></tr><tr><td>GeoJSON</td><td>51 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>22 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="i7-4">
+ <div class="sh"><span class="n">4</span><div><h4>Distance from each hexagon to its nearest metro station.</h4><p class="blk">Block: <b>Distance to nearest</b> · Add a field: distance from each feature to the nearest feature of another layer, or to a point.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Distance to nearest</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Add field to</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Distance to</th><td>nearest feature of a layer</td></tr><tr><th>Layer</th><td>Metro stations, Delhi NCR (OpenStreetMap)</td></tr><tr><th>Field name</th><td>metro</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_04.webp" data-zoom><img src="img/i7_04.webp" alt="Location Lab after running Distance to nearest" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Added dist_metro_km. Median 5.01 km, maximum 19.8 km.</p>
+ </div></details>
+</li><li class="step" id="i7-5">
+ <div class="sh"><span class="n">5</span><div><h4>Distance to Cyber Hub, the business district.</h4><p class="blk">Block: <b>Distance to nearest</b> · Add a field: distance from each feature to the nearest feature of another layer, or to a point.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 5</b> in the recipe panel (or drag <b>Distance to nearest</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Add field to</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Distance to</th><td>a fixed point</td></tr><tr><th>Point</th><td>Cyber Hub (business district)</td></tr><tr><th>Field name</th><td>cyberhub</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_05.webp" data-zoom><img src="img/i7_05.webp" alt="Location Lab after running Distance to nearest" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Added dist_cyberhub_km. Median 9.56 km, maximum 23.4 km.</p>
+ </div></details>
+</li><li class="step" id="i7-6">
+ <div class="sh"><span class="n">6</span><div><h4>Contiguity weights.</h4><p class="blk">Block: <b>Spatial weights</b> · Decide who counts as a neighbour. Every block in Patterns, Hotspots and Explain reuses this.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 6</b> in the recipe panel (or drag <b>Spatial weights</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Neighbours are</th><td>touching H3 hexagons</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_06.webp" data-zoom><img src="img/i7_06.webp" alt="Location Lab after running Spatial weights" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>5.6</b><span>neighbours on average</span></div><div class="kpi"><b>0–6</b><span>range</span></div><div class="kpi"><b>2</b><span>with none (islands)</span></div></div><p class="read">Neighbours: hexagon contiguity (6 touching cells). Weights are row-standardised, so each feature’s neighbours share a total weight of 1. Click any feature on the map to highlight its neighbours. Islands have no neighbours and are left out of the tests.</p>
+ </div></details>
+</li><li class="step" id="i7-7">
+ <div class="sh"><span class="n">7</span><div><h4>Ordinary regression, then Moran’s I on its residuals.</h4><p class="blk">Block: <b>Ordinary regression (OLS)</b> · Explain a value with others, then test whether the errors are still clustered in space.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 7</b> in the recipe panel (or drag <b>Ordinary regression (OLS)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Explain (y)</th><td>count</td></tr><tr><th>Using (x)</th><td>dist_metro_km, dist_cyberhub_km</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_07.webp" data-zoom><img src="img/i7_07.webp" alt="Location Lab after running Ordinary regression (OLS)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.044</b><span>R²</span></div><div class="kpi"><b>2,665</b><span>AIC (lower is better)</span></div><div class="kpi"><b>504</b><span>rows</span></div><div class="kpi"><b>0.242</b><span>Moran’s I of residuals</span></div><div class="kpi"><b>0.002</b><span>p-value</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>p-value</th><th></th></tr></thead><tbody><tr><td>Intercept</td><td>2.25</td><td>0.380</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_metro_km</td><td>-0.092</td><td>0.082</td><td>0.265</td><td></td></tr><tr><td>dist_cyberhub_km</td><td>-0.087</td><td>0.073</td><td>0.232</td><td></td></tr></tbody></table></div><p class="read">The map shows residuals (red = under-predicted, blue = over-predicted). They cluster (Moran’s I = 0.242), so OLS’s assumption of independent errors fails. Try the spatial lag and spatial error models next.</p>
+ </div></details>
+</li><li class="step" id="i7-8">
+ <div class="sh"><span class="n">8</span><div><h4>Spatial lag model (spillover).</h4><p class="blk">Block: <b>Spatial lag model</b> · Adds the neighbours’ y as a predictor: my value depends on my neighbours’ values (spillover).</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 8</b> in the recipe panel (or drag <b>Spatial lag model</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Explain (y)</th><td>count</td></tr><tr><th>Using (x)</th><td>dist_metro_km, dist_cyberhub_km</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_08.webp" data-zoom><img src="img/i7_08.webp" alt="Location Lab after running Spatial lag model" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.467</b><span>ρ (spillover)</span></div><div class="kpi"><b>&lt; 0.001</b><span>p-value of ρ</span></div><div class="kpi"><b>2,605</b><span>AIC (OLS 2,665)</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>p-value</th><th></th></tr></thead><tbody><tr><td>Intercept</td><td>1.21</td><td>0.349</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_metro_km</td><td>-0.057</td><td>0.076</td><td>0.453</td><td></td></tr><tr><td>dist_cyberhub_km</td><td>-0.042</td><td>0.067</td><td>0.533</td><td></td></tr><tr><td>ρ (W·y)</td><td>0.467</td><td>0.054</td><td>&lt; 0.001</td><td></td></tr></tbody></table></div><p class="read">ρ = 0.47: a 1-unit rise in the neighbours’ average count goes with a 0.47 rise here, holding the x variables fixed. AIC is lower than OLS, so the model with spillover fits better.</p>
+ </div></details>
+</li><li class="step" id="i7-9">
+ <div class="sh"><span class="n">9</span><div><h4>Spatial error model (clustered missing factors).</h4><p class="blk">Block: <b>Spatial error model</b> · Lets the errors be correlated with neighbours’ errors: missing factors that are themselves clustered.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 9</b> in the recipe panel (or drag <b>Spatial error model</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Explain (y)</th><td>count</td></tr><tr><th>Using (x)</th><td>dist_metro_km, dist_cyberhub_km</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_09.webp" data-zoom><img src="img/i7_09.webp" alt="Location Lab after running Spatial error model" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.469</b><span>λ (error clustering)</span></div><div class="kpi"><b>&lt; 0.001</b><span>p-value of λ</span></div><div class="kpi"><b>2,604</b><span>AIC (OLS 2,665)</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>p-value</th><th></th></tr></thead><tbody><tr><td>Intercept</td><td>2.23</td><td>0.643</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_metro_km</td><td>-0.120</td><td>0.137</td><td>0.380</td><td></td></tr><tr><td>dist_cyberhub_km</td><td>-0.065</td><td>0.120</td><td>0.587</td><td></td></tr><tr><td>λ (W·u)</td><td>0.469</td><td>0.054</td><td>&lt; 0.001</td><td></td></tr></tbody></table></div><p class="read">λ = 0.47: something not in the model (neighbourhood prestige, school zones, views) is shared by neighbours. The coefficients are now cleaned of that shared noise.</p>
+ </div></details>
+</li><li class="step" id="i7-10">
+ <div class="sh"><span class="n">10</span><div><h4>GWR: does the metro effect change across the city?</h4><p class="blk">Block: <b>Geographically weighted regression</b> · Fits a separate regression around every location, so each effect can vary across the map.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 10</b> in the recipe panel (or drag <b>Geographically weighted regression</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Cafés &amp; restaurants, Gurugram · H3 r8</td></tr><tr><th>Explain (y)</th><td>count</td></tr><tr><th>Using (x)</th><td>dist_metro_km, dist_cyberhub_km</td></tr><tr><th>Neighbours per fit (0 = auto)</th><td>0</td></tr><tr><th>Max rows (speed)</th><td>2000</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/i7_10.webp" data-zoom><img src="img/i7_10.webp" alt="Location Lab after running Geographically weighted regression" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>32</b><span>neighbours per local fit</span></div><div class="kpi"><b>0.449</b><span>R² (OLS 0.044)</span></div><div class="kpi"><b>504</b><span>rows used</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>OLS</th><th>GWR 5th pct</th><th>median</th><th>95th pct</th></tr></thead><tbody><tr><td>Intercept</td><td>2.25</td><td>-4.05</td><td>0.245</td><td>15.9</td></tr><tr><td>dist_metro_km</td><td>-0.092</td><td>-6.15</td><td>0</td><td>1.59</td></tr><tr><td>dist_cyberhub_km</td><td>-0.087</td><td>-2.05</td><td>0</td><td>2.10</td></tr></tbody></table></div><p class="read">OLS gives one number per variable for the whole map. GWR gives one per location: the map shows the local effect of dist_metro_km. If the 5th and 95th percentiles have opposite signs, the effect really changes across the city.</p>
+ </div></details>
+</li></ol>
+</section>
+</div>
+<div class="geo" id="geo-singapore" role="tabpanel">
+ <nav class="toc"><a href="#s1"><b>1</b>Spatial data in seven moves</a><a href="#s2"><b>2</b>Neighbours and spatial lag</a><a href="#s3"><b>3</b>Is the pattern random?</a><a href="#s4"><b>4</b>Autocorrelation and hotspots</a><a href="#s5"><b>5</b>Clusters for territories</a><a href="#s6"><b>6</b>From samples to surfaces</a><a href="#s7"><b>7</b>What explains resale prices?</a></nav>
+ <details class="data"><summary>The data for Singapore (already inside the tool)</summary><div class="tw"><table class="res"><thead><tr><th>Name in the tool</th><th>What</th><th>Source</th><th>Download</th></tr></thead><tbody><tr><td><code>hdb_resale_blocks</code></td><td>8,047 HDB blocks: median resale price per m², Nov 2025 – Oct 2026</td><td>data.gov.sg HDB resale prices, geocoded with OneMap</td><td><a href="https://quantng.github.io/location-lab/data/singapore/hdb_resale_blocks.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/singapore/hdb_resale_blocks.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/singapore/hdb_resale_blocks.fgb">FlatGeobuf</a></td></tr><tr><td><code>mrt_stations</code></td><td>184 MRT and LRT stations</td><td>sgraildata (OpenStreetMap / LTA)</td><td><a href="https://quantng.github.io/location-lab/data/singapore/mrt_stations.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/singapore/mrt_stations.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/singapore/mrt_stations.fgb">FlatGeobuf</a></td></tr><tr><td><code>hawker_centres</code></td><td>123 hawker centres</td><td>NEA, data.gov.sg</td><td><a href="https://quantng.github.io/location-lab/data/singapore/hawker_centres.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/singapore/hawker_centres.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/singapore/hawker_centres.fgb">FlatGeobuf</a></td></tr><tr><td><code>planning_areas</code></td><td>55 URA planning areas (Master Plan 2019)</td><td>URA, data.gov.sg</td><td><a href="https://quantng.github.io/location-lab/data/singapore/planning_areas.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/singapore/planning_areas.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/singapore/planning_areas.fgb">FlatGeobuf</a></td></tr><tr><td><code>botanic_gardens</code></td><td>Singapore Botanic Gardens outline</td><td>OpenStreetMap way 47257476</td><td><a href="https://quantng.github.io/location-lab/data/singapore/botanic_gardens.geojson">GeoJSON</a> · <a href="https://quantng.github.io/location-lab/data/singapore/botanic_gardens.parquet">GeoParquet</a> · <a href="https://quantng.github.io/location-lab/data/singapore/botanic_gardens.fgb">FlatGeobuf</a></td></tr><tr><td><code>botanic_gardens_ndvi_20251205</code></td><td>NDVI raster, 5 Dec 2025</td><td>Sentinel-2 L2A, Earth Search (AWS)</td><td><a href="https://quantng.github.io/location-lab/data/singapore/botanic_gardens_ndvi_20251205.tif">COG</a></td></tr></tbody></table></div></details>
+ <section class="recipe" id="s1">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 1</span><h3>Spatial data in seven moves</h3><p class="why">The same seven moves on Singapore’s hawker centres, URA planning areas and a Sentinel-2 image of the Botanic Gardens.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Spatial data</dt><dd>Any record that also says where on Earth it is.</dd></div><div class="term"><dt>Haversine distance</dt><dd>The shortest distance between two latitude–longitude points over the curved Earth.</dd></div><div class="term"><dt>Spatial join</dt><dd>Linking rows because their shapes relate (a point inside an outline), not because they share an ID.</dd></div><div class="term"><dt>H3</dt><dd>Uber’s global grid of numbered hexagons; finer resolutions split each cell into about seven.</dd></div><div class="term"><dt>NDVI</dt><dd>(near-infrared − red) ÷ (near-infrared + red), per satellite pixel, from −1 to +1. Higher means greener.</dd></div></dl></details>
+ <figure class="start"><img src="img/s1_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>1 · Spatial data in seven moves</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s1-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the hawker centres.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Hawker centres (NEA)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_01.webp" data-zoom><img src="img/s1_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>123</b><span>rows</span></div><div class="kpi"><b>35 KB</b><span>file size</span></div><div class="kpi"><b>0 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>29 KB</td><td></td></tr><tr><td>GeoJSON</td><td>35 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>19 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="s1-2">
+ <div class="sh"><span class="n">2</span><div><h4>Explore the table.</h4><p class="blk">Block: <b>Explore the table</b> · Fields, blanks and a preview. Optionally colour the map by a category.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Explore the table</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Hawker centres (NEA)</td></tr><tr><th>Colour by</th><td>— none —</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_02.webp" data-zoom><img src="img/s1_02.webp" alt="Location Lab after running Explore the table" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><div class="tw"><table class="res"><thead><tr><th>Field</th><th>Type</th><th>Unique</th><th>Blank</th></tr></thead><tbody><tr><td>name</td><td>text</td><td>123</td><td>0</td></tr><tr><td>address</td><td>text</td><td>112</td><td>12</td></tr><tr><td>status</td><td>text</td><td>4</td><td>0</td></tr><tr><td>cooked_food_stalls</td><td>number</td><td>57</td><td>0</td></tr><tr><td>name</td><td>address</td><td>status</td><td>cooked_food_stalls</td></tr><tr><td>Commonwealth Crescent Market</td><td>31, Commonwealth Crescent, Singapore 149644</td><td>Existing</td><td>39</td></tr></tbody></table></div><p class="read">Locations are complete for all 123 rows, but address is blank in 12. Check attributes before deciding anything.</p>
+ </div></details>
+</li><li class="step" id="s1-3">
+ <div class="sh"><span class="n">3</span><div><h4>Nearest hawker centres to Raffles Place.</h4><p class="blk">Block: <b>Nearest to a point</b> · Distance from a chosen point to every feature over the curved Earth, with 1, 3 and 5 km rings.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Nearest to a point</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Hawker centres (NEA)</td></tr><tr><th>From</th><td>Raffles Place MRT (CBD)</td></tr><tr><th>Show nearest</th><td>5</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_03.webp" data-zoom><img src="img/s1_03.webp" alt="Location Lab after running Nearest to a point" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>6</b><span>within 1 km</span></div><div class="kpi"><b>18</b><span>within 3 km</span></div><div class="kpi"><b>37</b><span>within 5 km</span></div></div><div class="tw"><table class="res"><thead><tr><th>#</th><th>Name</th><th>km</th></tr></thead><tbody><tr><td>1</td><td>Market Street Hawker Centre</td><td>0.17</td></tr><tr><td>2</td><td>Upper Cross Street Blk 531A (Hong Lim Food Centre and Market)</td><td>0.65</td></tr><tr><td>3</td><td>Amoy Street Food Centre (Telok Ayer Food Centre)</td><td>0.76</td></tr><tr><td>4</td><td>Maxwell Food Centre (Kim Hua Market)</td><td>0.85</td></tr><tr><td>5</td><td>Smith Street Blk 335 (Chinatown Complex Market)</td><td>0.94</td></tr></tbody></table></div><p class="read">Nearest to Raffles Place MRT (CBD): Market Street Hawker Centre, 0.17 km. A new field dist_km was added to every row.</p>
+ </div></details>
+</li><li class="step" id="s1-4">
+ <div class="sh"><span class="n">4</span><div><h4>Ask the same question in SQL.</h4><p class="blk">Block: <b>Ask in SQL</b> · Query any layer with SQL (DuckDB, running in your browser). The layer name is the table name.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Ask in SQL</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>SQL query</th><td>(query shown in the box)</td></tr></tbody></table><pre class="code">SELECT name,
+  round(2 * 6371 * asin(sqrt(
+    pow(sin(radians(latitude - 1.284) / 2), 2) +
+    cos(radians(1.284)) * cos(radians(latitude)) *
+    pow(sin(radians(longitude - 103.8515) / 2), 2))), 2) AS km,
+  latitude, longitude
+FROM hawker_centres
+ORDER BY km
+LIMIT 5;</pre>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_04.webp" data-zoom><img src="img/s1_04.webp" alt="Location Lab after running Ask in SQL" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><div class="tw"><table class="res"><thead><tr><th>name</th><th>km</th><th>latitude</th><th>longitude</th></tr></thead><tbody><tr><td>Raffles Place MRT (CBD)</td><td>0</td><td>1.28</td><td>103.9</td></tr></tbody></table></div>
+ </div></details>
+</li><li class="step" id="s1-5">
+ <div class="sh"><span class="n">5</span><div><h4>Box filter, then exact 2 km around Orchard.</h4><p class="blk">Block: <b>Box filter, then distance</b> · A cheap square filter first, then the exact distance on what is left: how spatial indexes work.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 5</b> in the recipe panel (or drag <b>Box filter, then distance</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>Hawker centres (NEA)</td></tr><tr><th>Centre</th><td>Orchard MRT</td></tr><tr><th>Radius (km)</th><td>2</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_05.webp" data-zoom><img src="img/s1_05.webp" alt="Location Lab after running Box filter, then distance" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>7</b><span>in the box</span></div><div class="kpi"><b>5</b><span>within 2 km</span></div><div class="kpi"><b>2</b><span>dropped from corners</span></div></div><p class="read">Step 1 used four cheap number comparisons per row. Step 2 computed the exact distance only for the 7 rows in the box, not all 123.</p>
+ </div></details>
+</li><li class="step" id="s1-6">
+ <div class="sh"><span class="n">6</span><div><h4>Load the 55 URA planning areas.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 6</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>URA planning areas (Master Plan 2019)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_06.webp" data-zoom><img src="img/s1_06.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>55</b><span>rows</span></div><div class="kpi"><b>138 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>59 KB</td><td></td></tr><tr><td>GeoJSON</td><td>138 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>54 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="s1-7">
+ <div class="sh"><span class="n">7</span><div><h4>Spatial join: planning area of each hawker centre.</h4><p class="blk">Block: <b>Spatial join</b> · Tag each point with the polygon it falls inside, and count points per polygon.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 7</b> in the recipe panel (or drag <b>Spatial join</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Hawker centres (NEA)</td></tr><tr><th>Polygons</th><td>URA planning areas (Master Plan 2019)</td></tr><tr><th>Polygon name field</th><td>planning_area</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_07.webp" data-zoom><img src="img/s1_07.webp" alt="Location Lab after running Spatial join" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">31 polygons received points. The field planning_area was added to each point; n_points to each polygon.</p>
+ </div></details>
+</li><li class="step" id="s1-8">
+ <div class="sh"><span class="n">8</span><div><h4>H3 hexagons in 3D.</h4><p class="blk">Block: <b>H3 hexagon bins</b> · Drop points into Uber’s global hexagon grid and count per cell. Optionally include empty cells.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 8</b> in the recipe panel (or drag <b>H3 hexagon bins</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Hawker centres (NEA)</td></tr><tr><th>Resolution</th><td>7 · ~5 km²</td></tr><tr><th>Also average</th><td>— none —</td></tr><tr><th>Empty cells</th><td>Leave out</td></tr><tr><th>3D columns</th><td>Yes</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_08.webp" data-zoom><img src="img/s1_08.webp" alt="Location Lab after running H3 hexagon bins" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>47</b><span>occupied cells</span></div><div class="kpi"><b>12</b><span>in the busiest cell</span></div></div><p class="read">Each cell has a permanent ID (e.g. 876520d9cffffff), so any other table binned the same way joins on that text.</p>
+ </div></details>
+</li><li class="step" id="s1-9">
+ <div class="sh"><span class="n">9</span><div><h4>Heatmap.</h4><p class="blk">Block: <b>Heatmap</b> · Spread each point into a soft glow and add them up: density at a glance.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 9</b> in the recipe panel (or drag <b>Heatmap</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Hawker centres (NEA)</td></tr><tr><th>Radius (pixels)</th><td>22</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_09.webp" data-zoom><img src="img/s1_09.webp" alt="Location Lab after running Heatmap" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">A heatmap shows where points crowd together. It is a picture, not a test: the hotspot blocks tell you whether a crowd is more than chance.</p>
+ </div></details>
+</li><li class="step" id="s1-10">
+ <div class="sh"><span class="n">10</span><div><h4>Load the NDVI raster (COG).</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 10</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>NDVI around the Botanic Gardens, Sentinel-2, 5 Dec 2025</td></tr><tr><th>Format</th><td>Cloud-Optimised GeoTIFF (COG)</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_10.webp" data-zoom><img src="img/s1_10.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>377</b><span>× 377 pixels</span></div><div class="kpi"><b>619 KB</b><span>file size</span></div><div class="kpi"><b>36 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>COG</td><td>619 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">A COG is a GeoTIFF laid out in 256-pixel tiles with overviews, so tools fetch only the tiles on screen.</p>
+ </div></details>
+</li><li class="step" id="s1-11">
+ <div class="sh"><span class="n">11</span><div><h4>Load the Botanic Gardens outline.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 11</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Singapore Botanic Gardens outline</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_11.webp" data-zoom><img src="img/s1_11.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>1</b><span>rows</span></div><div class="kpi"><b>4 KB</b><span>file size</span></div><div class="kpi"><b>0 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>3 KB</td><td></td></tr><tr><td>GeoJSON</td><td>4 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>18 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="s1-12">
+ <div class="sh"><span class="n">12</span><div><h4>Zonal statistics for the Gardens.</h4><p class="blk">Block: <b>NDVI zonal statistics</b> · Summarise the satellite greenness pixels inside an outline and highlight vegetation.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 12</b> in the recipe panel (or drag <b>NDVI zonal statistics</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Raster</th><td>NDVI around the Botanic Gardens, Sentinel-2, 5 Dec 2025</td></tr><tr><th>Outline</th><td>Singapore Botanic Gardens outline</td></tr><tr><th>Vegetation above</th><td>0.3</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s1_12.webp" data-zoom><img src="img/s1_12.webp" alt="Location Lab after running NDVI zonal statistics" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>7,052</b><span>pixels inside</span></div><div class="kpi"><b>0.77</b><span>mean NDVI</span></div><div class="kpi"><b>98%</b><span>above 0.3</span></div></div><p class="read">NDVI = (NIR − Red) ÷ (NIR + Red). Each pixel is about 10 m across. Pixels at or below 0.3 are faded on the map.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="s2">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 2</span><h3>Neighbours and spatial lag</h3><p class="why">Each HDB block’s neighbours are its 8 nearest blocks. Lag = their average price.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Spatial weights</dt><dd>A table that says, for every feature, who its neighbours are. Choices: the k nearest, everyone within a distance, or features that touch.</dd></div><div class="term"><dt>Row-standardised</dt><dd>Each feature’s neighbours share a total weight of 1, so “neighbours’ average” is a fair average whatever the number of neighbours.</dd></div><div class="term"><dt>Spatial lag</dt><dd>The neighbours’ average of a value: “how is my neighbourhood doing?”</dd></div></dl></details>
+ <figure class="start"><img src="img/s2_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>2 · Neighbours and spatial lag</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s2-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load HDB resale blocks (GeoParquet).</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Format</th><td>GeoParquet</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s2_01.webp" data-zoom><img src="img/s2_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8,047</b><span>rows</span></div><div class="kpi"><b>318 KB</b><span>file size</span></div><div class="kpi"><b>59 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>1.9 MB</td><td></td></tr><tr><td>GeoJSON</td><td>2.8 MB</td><td></td></tr><tr><td>GeoParquet</td><td>363 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">GeoParquet stores each column together and compresses it: the modern standard for big vector tables.</p>
+ </div></details>
+</li><li class="step" id="s2-2">
+ <div class="sh"><span class="n">2</span><div><h4>8-nearest-neighbour weights. Click a block to see its neighbours.</h4><p class="blk">Block: <b>Spatial weights</b> · Decide who counts as a neighbour. Every block in Patterns, Hotspots and Explain reuses this.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Spatial weights</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Neighbours are</th><td>the k nearest</td></tr><tr><th>k</th><td>8</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s2_02.webp" data-zoom><img src="img/s2_02.webp" alt="Location Lab after running Spatial weights" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8.0</b><span>neighbours on average</span></div><div class="kpi"><b>8–8</b><span>range</span></div><div class="kpi"><b>0</b><span>with none (islands)</span></div></div><p class="read">Neighbours: 8 nearest neighbours. Weights are row-standardised, so each feature’s neighbours share a total weight of 1. Click any feature on the map to highlight its neighbours.</p>
+ </div></details>
+</li><li class="step" id="s2-3">
+ <div class="sh"><span class="n">3</span><div><h4>Spatial lag of price per m².</h4><p class="blk">Block: <b>Spatial lag</b> · The average of a value among each feature’s neighbours: “how is my neighbourhood doing?”</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Spatial lag</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Value</th><td>price_psm</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s2_03.webp" data-zoom><img src="img/s2_03.webp" alt="Location Lab after running Spatial lag" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Map now shows lag_price_psm. Correlation between a feature’s own value and its neighbours’ average: 0.85. A strong positive value is the first sign of spatial autocorrelation.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="s3">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 3</span><h3>Is the pattern random?</h3><p class="why">Are hawker centres clustered, spread out, or random across the island?</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Complete spatial randomness</dt><dd>The benchmark: points scattered by pure chance over the same area.</dd></div><div class="term"><dt>Nearest-neighbour ratio R</dt><dd>Observed average distance to the nearest point ÷ the distance expected if random. Below 1 clustered, above 1 dispersed.</dd></div><div class="term"><dt>Ripley’s L</dt><dd>Repeats the comparison at many distances, so you see at which scale clustering happens. The grey band is what 19 random patterns produce.</dd></div></dl></details>
+ <figure class="start"><img src="img/s3_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>3 · Is the pattern random?</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s3-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load the hawker centres.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Hawker centres (NEA)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s3_01.webp" data-zoom><img src="img/s3_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>123</b><span>rows</span></div><div class="kpi"><b>35 KB</b><span>file size</span></div><div class="kpi"><b>0 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>29 KB</td><td></td></tr><tr><td>GeoJSON</td><td>35 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>19 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="s3-2">
+ <div class="sh"><span class="n">2</span><div><h4>Nearest-neighbour ratio and Ripley’s L.</h4><p class="blk">Block: <b>Point pattern test</b> · Clark–Evans nearest-neighbour ratio and Ripley’s L, against 19 random patterns in the same area.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Point pattern test</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>Hawker centres (NEA)</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s3_02.webp" data-zoom><img src="img/s3_02.webp" alt="Location Lab after running Point pattern test" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.89</b><span>nearest-neighbour ratio R</span></div><div class="kpi"><b>-2.4</b><span>z-score</span></div><div class="kpi"><b>Clustered</b><span>verdict</span></div></div><p class="read">Average nearest neighbour: 803 m observed vs 907 m expected if random. R below 1 means clustered, above 1 dispersed. In the chart, the line above the grey band means more clustering than chance at that distance.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="s4">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 4</span><h3>Autocorrelation and hotspots</h3><p class="why">Where are prices significantly high or low, given their neighbours?</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Spatial autocorrelation</dt><dd>Whether similar values sit next to each other (Tobler: near things are more related than distant things).</dd></div><div class="term"><dt>Moran’s I</dt><dd>One number for the whole map. Positive: similar values cluster. Near zero: random. Negative: neighbours differ.</dd></div><div class="term"><dt>Permutation test</dt><dd>Shuffle the values across locations many times; if the real I beats almost all shuffles, the pattern is not chance.</dd></div><div class="term"><dt>LISA</dt><dd>Local Moran’s I for each feature: High-High hotspots, Low-Low coldspots, High-Low and Low-High outliers.</dd></div><div class="term"><dt>Getis-Ord Gi*</dt><dd>Is the total around a feature (itself included) much higher or lower than chance? Reported as a z-score: 1.96 is 95% confidence.</dd></div></dl></details>
+ <figure class="start"><img src="img/s4_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>4 · Autocorrelation and hotspots</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s4-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load HDB resale blocks.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Format</th><td>GeoParquet</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s4_01.webp" data-zoom><img src="img/s4_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8,047</b><span>rows</span></div><div class="kpi"><b>318 KB</b><span>file size</span></div><div class="kpi"><b>46 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>1.9 MB</td><td></td></tr><tr><td>GeoJSON</td><td>2.8 MB</td><td></td></tr><tr><td>GeoParquet</td><td>363 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">GeoParquet stores each column together and compresses it: the modern standard for big vector tables.</p>
+ </div></details>
+</li><li class="step" id="s4-2">
+ <div class="sh"><span class="n">2</span><div><h4>8-nearest-neighbour weights.</h4><p class="blk">Block: <b>Spatial weights</b> · Decide who counts as a neighbour. Every block in Patterns, Hotspots and Explain reuses this.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Spatial weights</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Neighbours are</th><td>the k nearest</td></tr><tr><th>k</th><td>8</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s4_02.webp" data-zoom><img src="img/s4_02.webp" alt="Location Lab after running Spatial weights" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8.0</b><span>neighbours on average</span></div><div class="kpi"><b>8–8</b><span>range</span></div><div class="kpi"><b>0</b><span>with none (islands)</span></div></div><p class="read">Neighbours: 8 nearest neighbours. Weights are row-standardised, so each feature’s neighbours share a total weight of 1. Click any feature on the map to highlight its neighbours.</p>
+ </div></details>
+</li><li class="step" id="s4-3">
+ <div class="sh"><span class="n">3</span><div><h4>Global Moran’s I.</h4><p class="blk">Block: <b>Global Moran’s I</b> · One number for the whole map: do similar values sit next to each other? Tested against 999 shuffles.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Global Moran’s I</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Value</th><td>price_psm</td></tr><tr><th>Shuffles</th><td>999</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s4_03.webp" data-zoom><img src="img/s4_03.webp" alt="Location Lab after running Global Moran’s I" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.711</b><span>Moran’s I</span></div><div class="kpi"><b>-0.000</b><span>expected if random</span></div><div class="kpi"><b>0.001</b><span>pseudo p-value</span></div></div><p class="read">I = 0.711 is positive and none of 999 random shuffles came close (p 0.001). High values cluster near high values and low near low. The slope of the line in the scatter is I.</p>
+ </div></details>
+</li><li class="step" id="s4-4">
+ <div class="sh"><span class="n">4</span><div><h4>LISA clusters and outliers.</h4><p class="blk">Block: <b>Local Moran (LISA)</b> · Moran’s I for every feature: High-High hotspots, Low-Low coldspots, and outliers.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Local Moran (LISA)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Value</th><td>price_psm</td></tr><tr><th>Significance</th><td>95%</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s4_04.webp" data-zoom><img src="img/s4_04.webp" alt="Location Lab after running Local Moran (LISA)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">High-High: high values among high neighbours (hotspots). Low-Low: coldspots. High-Low: a strong performer surrounded by weak ones. Low-High: a weak spot in a strong area, often an opening.</p>
+ </div></details>
+</li><li class="step" id="s4-5">
+ <div class="sh"><span class="n">5</span><div><h4>Gi* hotspots.</h4><p class="blk">Block: <b>Hotspots (Getis-Ord Gi*)</b> · Is the sum around each feature (itself included) much higher or lower than chance?</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 5</b> in the recipe panel (or drag <b>Hotspots (Getis-Ord Gi*)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Value</th><td>price_psm</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s4_05.webp" data-zoom><img src="img/s4_05.webp" alt="Location Lab after running Hotspots (Getis-Ord Gi*)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">A heatmap shows where things are dense. Gi* tells you where the density is too strong to be chance (z above 1.96 is 95% confidence). Use it to pick priority zones.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="s5">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 5</span><h3>Clusters for territories</h3><p class="why">DBSCAN finds HDB estates from block locations alone.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>DBSCAN</dt><dd>Density-based clustering: a point joins a cluster if enough points (minimum count) sit within a distance (ε). Isolated points are labelled noise.</dd></div><div class="term"><dt>Why not k-means</dt><dd>DBSCAN does not need the number of clusters in advance, handles odd shapes and flags outliers.</dd></div></dl></details>
+ <figure class="start"><img src="img/s5_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>5 · Clusters for territories</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s5-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load HDB resale blocks.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Format</th><td>GeoParquet</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s5_01.webp" data-zoom><img src="img/s5_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8,047</b><span>rows</span></div><div class="kpi"><b>318 KB</b><span>file size</span></div><div class="kpi"><b>37 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>1.9 MB</td><td></td></tr><tr><td>GeoJSON</td><td>2.8 MB</td><td></td></tr><tr><td>GeoParquet</td><td>363 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">GeoParquet stores each column together and compresses it: the modern standard for big vector tables.</p>
+ </div></details>
+</li><li class="step" id="s5-2">
+ <div class="sh"><span class="n">2</span><div><h4>DBSCAN: 12+ blocks within 250 m.</h4><p class="blk">Block: <b>Density clusters (DBSCAN)</b> · Group points that have enough neighbours within a distance; the rest are labelled noise.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Density clusters (DBSCAN)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Points</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Within (km)</th><td>0.25</td></tr><tr><th>At least</th><td>12</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s5_02.webp" data-zoom><img src="img/s5_02.webp" alt="Location Lab after running Density clusters (DBSCAN)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>63</b><span>clusters</span></div><div class="kpi"><b>364</b><span>noise points</span></div><div class="kpi"><b>997</b><span>in the largest</span></div></div><p class="read">A point belongs to a cluster if at least 12 points sit within 0.25 km. Change the two numbers and watch clusters merge or split: the choice is a business decision about what “a market” means.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="s6">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 6</span><h3>From samples to surfaces</h3><p class="why">A continuous price surface from block-level sales.</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>Interpolation</dt><dd>Estimating a value everywhere from values measured at a few places.</dd></div><div class="term"><dt>IDW</dt><dd>Inverse distance weighting: nearer samples count more (weight = 1 ÷ distance^power).</dd></div><div class="term"><dt>Variogram</dt><dd>How quickly similarity fades with distance. The range is where neighbours stop being informative.</dd></div><div class="term"><dt>Kriging</dt><dd>Uses the variogram to predict each cell and also gives a standard error map: where the estimate is reliable and where it is a guess.</dd></div></dl></details>
+ <figure class="start"><img src="img/s6_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>6 · From samples to surfaces</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s6-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load HDB resale blocks.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Format</th><td>GeoParquet</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s6_01.webp" data-zoom><img src="img/s6_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8,047</b><span>rows</span></div><div class="kpi"><b>318 KB</b><span>file size</span></div><div class="kpi"><b>25 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>1.9 MB</td><td></td></tr><tr><td>GeoJSON</td><td>2.8 MB</td><td></td></tr><tr><td>GeoParquet</td><td>363 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">GeoParquet stores each column together and compresses it: the modern standard for big vector tables.</p>
+ </div></details>
+</li><li class="step" id="s6-2">
+ <div class="sh"><span class="n">2</span><div><h4>IDW price surface.</h4><p class="blk">Block: <b>IDW surface</b> · Estimate every cell from nearby samples, giving closer samples more weight.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>IDW surface</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Sample points</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Value</th><td>price_psm</td></tr><tr><th>Power</th><td>2</td></tr><tr><th>Cell size (m)</th><td>300</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s6_02.webp" data-zoom><img src="img/s6_02.webp" alt="Location Lab after running IDW surface" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Each cell is a weighted average of the 12 nearest samples, weight = 1 ÷ distance^power. Higher power makes the surface more local.</p>
+ </div></details>
+</li><li class="step" id="s6-3">
+ <div class="sh"><span class="n">3</span><div><h4>Kriging surface and its uncertainty.</h4><p class="blk">Block: <b>Kriging surface</b> · Fit how similarity fades with distance (variogram), then predict every cell with an uncertainty map.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Kriging surface</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Sample points</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Value</th><td>price_psm</td></tr><tr><th>Cell size (m)</th><td>400</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s6_03.webp" data-zoom><img src="img/s6_03.webp" alt="Location Lab after running Kriging surface" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Similarity fades out at about 12.84 km (the range). Beyond that, samples tell you nothing about each other. Tick on Kriging uncertainty in Layers: it is lowest next to samples and highest in the gaps, which a manager can use to decide where to collect more data.</p>
+ </div></details>
+</li></ol>
+</section><section class="recipe" id="s7">
+ <div class="rh"><span class="eyebrow">Singapore · Recipe 7</span><h3>What explains resale prices?</h3><p class="why">Does price per m² rise near MRT, hawker centres and the CBD, and is that effect the same island-wide?</p></div>
+ <details class="concepts"><summary>Words you need for this recipe</summary><dl><div class="term"><dt>OLS</dt><dd>Ordinary least squares regression: one coefficient per variable for the whole map. Assumes errors are independent.</dd></div><div class="term"><dt>Residual Moran’s I</dt><dd>If the errors themselves cluster, OLS is missing something spatial.</dd></div><div class="term"><dt>Spatial lag model</dt><dd>Adds the neighbours’ y as a predictor (ρ): spillover between neighbours.</dd></div><div class="term"><dt>Spatial error model</dt><dd>Lets errors be correlated between neighbours (λ): shared factors the model does not measure.</dd></div><div class="term"><dt>GWR</dt><dd>Geographically weighted regression: a separate regression around every location, so each effect can vary across the map.</dd></div><div class="term"><dt>AIC</dt><dd>A score for comparing models on the same data; lower is better.</dd></div></dl></details>
+ <figure class="start"><img src="img/s7_00.webp" alt="Recipe panel before starting" loading="lazy" width="1440" height="860"><figcaption>Choose <b>7 · What explains resale prices?</b> in the Guided recipe box (top right). The steps appear with an <b>Add step 1</b> button.</figcaption></figure>
+ <ol class="steps"><li class="step" id="s7-1">
+ <div class="sh"><span class="n">1</span><div><h4>Load HDB resale blocks.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 1</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Format</th><td>GeoParquet</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_01.webp" data-zoom><img src="img/s7_01.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8,047</b><span>rows</span></div><div class="kpi"><b>318 KB</b><span>file size</span></div><div class="kpi"><b>34 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>1.9 MB</td><td></td></tr><tr><td>GeoJSON</td><td>2.8 MB</td><td></td></tr><tr><td>GeoParquet</td><td>363 KB</td><td>← loaded</td></tr></tbody></table></div><p class="read">GeoParquet stores each column together and compresses it: the modern standard for big vector tables.</p>
+ </div></details>
+</li><li class="step" id="s7-2">
+ <div class="sh"><span class="n">2</span><div><h4>Load MRT &amp; LRT stations.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 2</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>MRT &amp; LRT stations</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_02.webp" data-zoom><img src="img/s7_02.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>184</b><span>rows</span></div><div class="kpi"><b>32 KB</b><span>file size</span></div><div class="kpi"><b>1 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>28 KB</td><td></td></tr><tr><td>GeoJSON</td><td>32 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>15 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="s7-3">
+ <div class="sh"><span class="n">3</span><div><h4>Distance from each block to the nearest station.</h4><p class="blk">Block: <b>Distance to nearest</b> · Add a field: distance from each feature to the nearest feature of another layer, or to a point.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 3</b> in the recipe panel (or drag <b>Distance to nearest</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Add field to</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Distance to</th><td>nearest feature of a layer</td></tr><tr><th>Layer</th><td>MRT &amp; LRT stations</td></tr><tr><th>Field name</th><td>mrt</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_03.webp" data-zoom><img src="img/s7_03.webp" alt="Location Lab after running Distance to nearest" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Added dist_mrt_km. Median 0.545 km, maximum 3.51 km.</p>
+ </div></details>
+</li><li class="step" id="s7-4">
+ <div class="sh"><span class="n">4</span><div><h4>Load hawker centres.</h4><p class="blk">Block: <b>Load sample data</b> · Open a bundled dataset in the format you choose and compare file sizes.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 4</b> in the recipe panel (or drag <b>Load sample data</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Dataset</th><td>Hawker centres (NEA)</td></tr><tr><th>Format</th><td>GeoJSON</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_04.webp" data-zoom><img src="img/s7_04.webp" alt="Location Lab after running Load sample data" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>123</b><span>rows</span></div><div class="kpi"><b>35 KB</b><span>file size</span></div><div class="kpi"><b>0 ms</b><span>parse time</span></div></div><div class="tw"><table class="res"><thead><tr><th>Same data as</th><th>Size</th><th></th></tr></thead><tbody><tr><td>FlatGeobuf</td><td>29 KB</td><td></td></tr><tr><td>GeoJSON</td><td>35 KB</td><td>← loaded</td></tr><tr><td>GeoParquet</td><td>19 KB</td><td></td></tr></tbody></table></div><p class="read">GeoJSON is plain text: easy to read, slow and large at scale.</p>
+ </div></details>
+</li><li class="step" id="s7-5">
+ <div class="sh"><span class="n">5</span><div><h4>Distance to the nearest hawker centre.</h4><p class="blk">Block: <b>Distance to nearest</b> · Add a field: distance from each feature to the nearest feature of another layer, or to a point.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 5</b> in the recipe panel (or drag <b>Distance to nearest</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Add field to</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Distance to</th><td>nearest feature of a layer</td></tr><tr><th>Layer</th><td>Hawker centres (NEA)</td></tr><tr><th>Field name</th><td>hawker</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_05.webp" data-zoom><img src="img/s7_05.webp" alt="Location Lab after running Distance to nearest" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Added dist_hawker_km. Median 0.664 km, maximum 2.85 km.</p>
+ </div></details>
+</li><li class="step" id="s7-6">
+ <div class="sh"><span class="n">6</span><div><h4>Distance to Raffles Place (CBD).</h4><p class="blk">Block: <b>Distance to nearest</b> · Add a field: distance from each feature to the nearest feature of another layer, or to a point.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 6</b> in the recipe panel (or drag <b>Distance to nearest</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Add field to</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Distance to</th><td>a fixed point</td></tr><tr><th>Point</th><td>Raffles Place MRT (CBD)</td></tr><tr><th>Field name</th><td>cbd</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_06.webp" data-zoom><img src="img/s7_06.webp" alt="Location Lab after running Distance to nearest" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"></div><p class="read">Added dist_cbd_km. Median 13.5 km, maximum 20.0 km.</p>
+ </div></details>
+</li><li class="step" id="s7-7">
+ <div class="sh"><span class="n">7</span><div><h4>8-nearest-neighbour weights.</h4><p class="blk">Block: <b>Spatial weights</b> · Decide who counts as a neighbour. Every block in Patterns, Hotspots and Explain reuses this.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 7</b> in the recipe panel (or drag <b>Spatial weights</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Neighbours are</th><td>the k nearest</td></tr><tr><th>k</th><td>8</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_07.webp" data-zoom><img src="img/s7_07.webp" alt="Location Lab after running Spatial weights" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>8.0</b><span>neighbours on average</span></div><div class="kpi"><b>8–8</b><span>range</span></div><div class="kpi"><b>0</b><span>with none (islands)</span></div></div><p class="read">Neighbours: 8 nearest neighbours. Weights are row-standardised, so each feature’s neighbours share a total weight of 1. Click any feature on the map to highlight its neighbours.</p>
+ </div></details>
+</li><li class="step" id="s7-8">
+ <div class="sh"><span class="n">8</span><div><h4>Ordinary regression and residual Moran’s I.</h4><p class="blk">Block: <b>Ordinary regression (OLS)</b> · Explain a value with others, then test whether the errors are still clustered in space.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 8</b> in the recipe panel (or drag <b>Ordinary regression (OLS)</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Explain (y)</th><td>price_psm</td></tr><tr><th>Using (x)</th><td>storey_mid, lease_start, dist_mrt_km, dist_hawker_km, dist_cbd_km</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_08.webp" data-zoom><img src="img/s7_08.webp" alt="Location Lab after running Ordinary regression (OLS)" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.688</b><span>R²</span></div><div class="kpi"><b>130,820</b><span>AIC (lower is better)</span></div><div class="kpi"><b>8,047</b><span>rows</span></div><div class="kpi"><b>0.653</b><span>Moran’s I of residuals</span></div><div class="kpi"><b>0.002</b><span>p-value</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>p-value</th><th></th></tr></thead><tbody><tr><td>Intercept</td><td>-127,586</td><td>1,556</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_mrt_km</td><td>-348.1</td><td>24.3</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_hawker_km</td><td>-264.9</td><td>19.1</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_cbd_km</td><td>-208.1</td><td>2.42</td><td>&lt;0.001</td><td>***</td></tr><tr><td>lease_start</td><td>68.6</td><td>0.789</td><td>&lt;0.001</td><td>***</td></tr><tr><td>storey_mid</td><td>50.6</td><td>2.23</td><td>&lt;0.001</td><td>***</td></tr></tbody></table></div><p class="read">The map shows residuals (red = under-predicted, blue = over-predicted). They cluster (Moran’s I = 0.653), so OLS’s assumption of independent errors fails. Try the spatial lag and spatial error models next.</p>
+ </div></details>
+</li><li class="step" id="s7-9">
+ <div class="sh"><span class="n">9</span><div><h4>Spatial lag model.</h4><p class="blk">Block: <b>Spatial lag model</b> · Adds the neighbours’ y as a predictor: my value depends on my neighbours’ values (spillover).</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 9</b> in the recipe panel (or drag <b>Spatial lag model</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Explain (y)</th><td>price_psm</td></tr><tr><th>Using (x)</th><td>storey_mid, lease_start, dist_mrt_km, dist_hawker_km, dist_cbd_km</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_09.webp" data-zoom><img src="img/s7_09.webp" alt="Location Lab after running Spatial lag model" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.588</b><span>ρ (spillover)</span></div><div class="kpi"><b>&lt; 0.001</b><span>p-value of ρ</span></div><div class="kpi"><b>127,513</b><span>AIC (OLS 130,820)</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>p-value</th><th></th></tr></thead><tbody><tr><td>Intercept</td><td>-76,071</td><td>1,236</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_mrt_km</td><td>-113.1</td><td>19.3</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_hawker_km</td><td>-136.7</td><td>15.2</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_cbd_km</td><td>-90.1</td><td>1.92</td><td>&lt;0.001</td><td>***</td></tr><tr><td>lease_start</td><td>40.0</td><td>0.626</td><td>&lt;0.001</td><td>***</td></tr><tr><td>storey_mid</td><td>46.3</td><td>1.77</td><td>&lt;0.001</td><td>***</td></tr></tbody></table></div><p class="read">ρ = 0.59: a 1-unit rise in the neighbours’ average price_psm goes with a 0.59 rise here, holding the x variables fixed. AIC is lower than OLS, so the model with spillover fits better.</p>
+ </div></details>
+</li><li class="step" id="s7-10">
+ <div class="sh"><span class="n">10</span><div><h4>Spatial error model.</h4><p class="blk">Block: <b>Spatial error model</b> · Lets the errors be correlated with neighbours’ errors: missing factors that are themselves clustered.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 10</b> in the recipe panel (or drag <b>Spatial error model</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer with weights</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Explain (y)</th><td>price_psm</td></tr><tr><th>Using (x)</th><td>storey_mid, lease_start, dist_mrt_km, dist_hawker_km, dist_cbd_km</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_10.webp" data-zoom><img src="img/s7_10.webp" alt="Location Lab after running Spatial error model" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>0.850</b><span>λ (error clustering)</span></div><div class="kpi"><b>&lt; 0.001</b><span>p-value of λ</span></div><div class="kpi"><b>123,430</b><span>AIC (OLS 130,820)</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>p-value</th><th></th></tr></thead><tbody><tr><td>Intercept</td><td>-168,488</td><td>1,714</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_mrt_km</td><td>-418.9</td><td>63.9</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_hawker_km</td><td>-339.4</td><td>58.6</td><td>&lt;0.001</td><td>***</td></tr><tr><td>dist_cbd_km</td><td>-212.5</td><td>8.56</td><td>&lt;0.001</td><td>***</td></tr><tr><td>lease_start</td><td>89.2</td><td>0.865</td><td>&lt;0.001</td><td>***</td></tr><tr><td>storey_mid</td><td>44.8</td><td>1.38</td><td>&lt;0.001</td><td>***</td></tr></tbody></table></div><p class="read">λ = 0.85: something not in the model (neighbourhood prestige, school zones, views) is shared by neighbours. The coefficients are now cleaned of that shared noise.</p>
+ </div></details>
+</li><li class="step" id="s7-11">
+ <div class="sh"><span class="n">11</span><div><h4>GWR: where does MRT access matter most?</h4><p class="blk">Block: <b>Geographically weighted regression</b> · Fits a separate regression around every location, so each effect can vary across the map.</p></div></div>
+ <details class="do" open><summary>Do this</summary><div class="body">
+  <ol class="how"><li>Click <b>Add step 11</b> in the recipe panel (or drag <b>Geographically weighted regression</b> from the left onto <i>Your pipeline</i>).</li><li>Check the settings below, then press <b>Run</b>.</li></ol>
+  <table class="set"><tbody><tr><th>Layer</th><td>HDB resale prices by block, last 12 months</td></tr><tr><th>Explain (y)</th><td>price_psm</td></tr><tr><th>Using (x)</th><td>lease_start, dist_mrt_km, dist_cbd_km</td></tr><tr><th>Neighbours per fit (0 = auto)</th><td>0</td></tr><tr><th>Max rows (speed)</th><td>1500</td></tr></tbody></table>
+ </div></details>
+ <details class="see" open><summary>You should see</summary><div class="body">
+  <a class="shot" href="img/s7_11.webp" data-zoom><img src="img/s7_11.webp" alt="Location Lab after running Geographically weighted regression" loading="lazy" width="1440" height="860"></a>
+  <div class="kpis"><div class="kpi"><b>35</b><span>neighbours per local fit</span></div><div class="kpi"><b>0.916</b><span>R² (OLS 0.695)</span></div><div class="kpi"><b>1,500</b><span>rows used</span></div></div><div class="tw"><table class="res"><thead><tr><th>Variable</th><th>OLS</th><th>GWR 5th pct</th><th>median</th><th>95th pct</th></tr></thead><tbody><tr><td>Intercept</td><td>-146,180</td><td>-276,301</td><td>-150,390</td><td>-26,068</td></tr><tr><td>dist_mrt_km</td><td>-323.5</td><td>-2,241</td><td>-836.3</td><td>662.4</td></tr><tr><td>dist_cbd_km</td><td>-243.0</td><td>-1,054</td><td>-113.8</td><td>823.2</td></tr><tr><td>lease_start</td><td>78.2</td><td>18.4</td><td>79.1</td><td>143.3</td></tr></tbody></table></div><p class="read">OLS gives one number per variable for the whole map. GWR gives one per location: the map shows the local effect of dist_mrt_km. If the 5th and 95th percentiles have opposite signs, the effect really changes across the city.</p>
+ </div></details>
+</li></ol>
+</section>
+</div>
+<footer>Results were produced in Location Lab and checked against PySAL (esda, spreg) and mgwr. Random shuffles use a fixed seed, so your p-values should match; small differences in the last digit are normal. Data: OpenStreetMap contributors (ODbL), geoBoundaries (CC BY 4.0), Singapore Open Data Licence (HDB, NEA, URA), Copernicus Sentinel-2.</footer>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tabs button'),show=g=>{tabs.forEach(b=>b.setAttribute('aria-selected',b.dataset.g===g));document.querySelectorAll('.geo').forEach(d=>d.hidden=d.id!=='geo-'+g)};
+tabs.forEach(b=>b.onclick=()=>show(b.dataset.g));show(location.hash.startsWith('#s')?'singapore':'india');
+document.querySelectorAll('[data-zoom]').forEach(a=>a.onclick=e=>{e.preventDefault();const d=document.createElement('div');d.className='lb';d.innerHTML=`<img src="${a.getAttribute('href')}" alt="">`;d.onclick=()=>d.remove();document.body.appendChild(d)});
+</script></body></html>

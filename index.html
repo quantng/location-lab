@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Location Lab</title>
+<meta name="description" content="Drag-and-drop location analytics workbench: spatial data, neighbours, autocorrelation, hotspots, clusters, surfaces and spatial regression, on India and Singapore open data.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="lib/maplibre-gl.css">
+<link rel="stylesheet" href="css/style.css">
+<script src="lib/maplibre-gl.js"></script>
+<script src="lib/h3-js.umd.js"></script>
+<script src="lib/flatgeobuf-geojson.min.js"></script>
+<script src="lib/geotiff.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><div><b>Location Lab</b><small>spatial data &amp; location analytics workbench</small></div></div>
+  <div class="seg" role="group" aria-label="Geography">
+    <button id="geo-india" class="on" data-geo="india">India · Gurugram</button>
+    <button id="geo-singapore" data-geo="singapore">Singapore</button>
+  </div>
+  <div class="seg" role="group" aria-label="Mode">
+    <button id="mode-guided" class="on" data-mode="guided">Guided</button>
+    <button id="mode-free" data-mode="free">Free play</button>
+  </div>
+  <button id="reset" class="ghost">Clear workspace</button>
+</header>
+<main class="app">
+  <aside class="palette" id="palette" aria-label="Blocks"></aside>
+  <section class="mapwrap">
+    <div id="map"></div>
+    <div class="layers" id="layers" aria-label="Layers"><div class="lh">Layers</div><div id="layerlist"><p class="empty">Load a dataset to start.</p></div></div>
+    <div class="legend" id="legend" hidden></div>
+    <div class="pickhint" id="pickhint" hidden>Click on the map to choose a point · <button id="pickcancel" class="ghost sm">Cancel</button></div>
+    <div class="toast" id="toast" role="status" hidden></div>
+  </section>
+  <aside class="flow" aria-label="Pipeline">
+    <div id="recipebox"></div>
+    <div class="flowhead"><b>Your pipeline</b><span id="flowcount">0 blocks</span></div>
+    <ol class="pipeline" id="pipeline"><li class="drop" id="dropzone">Drag a block here, or tap “+” on any block.</li></ol>
+  </aside>
+</main>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
