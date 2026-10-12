@@ -188,7 +188,7 @@ export const BLOCKS = [
       const fld = p.stat === 'count' ? 'n' : label.replace(/\W+/g, '_');
       ctx.addLayer({ id, name: nm, kind: 'point', fc: { type: 'FeatureCollection', features: feats }, style: { mode: 'seq', field: fld, radius: 9 } });
       const show = rows.slice(0, 40).map(({ k, g, v }) => [ctx.esc(k === '' ? '(blank)' : k), g.n.toLocaleString(), (100 * g.n / total).toFixed(1) + '%', p.stat === 'count' ? '' : p.stat === 'share' ? (100 * v).toFixed(1) + '%' : ctx.fmt(v)]);
-      return { html: `<div class="kpis">${ctx.kpi(rows.length.toLocaleString(), 'groups')}${ctx.kpi(total.toLocaleString(), 'features')}${ctx.kpi(rows[0] ? (100 * rows[0].g.n / total).toFixed(1) + '%' : '', 'in the largest group')}</div>`,
+      return { html: `<div class="kpis">${ctx.kpi(rows.length.toLocaleString(), 'groups')}${ctx.kpi(total.toLocaleString(), 'features')}${ctx.kpi(rows.length ? (100 * Math.max(...rows.map(r => r.g.n)) / total).toFixed(1) + '%' : '', 'in the largest group')}</div>`,
         nodes: [ctx.C.table([p.by, 'count', 'share of all', p.stat === 'count' ? '' : label], show)], read: `Layer <b>${ctx.esc(nm)}</b> has one point per group, at the group’s average location, with the count, ${p.stat === 'count' ? '' : `<b>${ctx.esc(fld)}</b>, `}and the average of every numeric field (mean_…). Use it in Kriging, Regression or Filter features.` };
     } },
   { id: 'calc', group: 'sd', name: 'Calculate a field', what: 'Make a new column: a 0/1 flag, classes from thresholds, a ratio, or each value minus its group average.',
