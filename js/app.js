@@ -23,7 +23,7 @@ map.on('error', e => { if (String(e?.error?.message || '').includes('basemaps'))
 // ---------------------------------------------------------------- helpers
 const toast = (msg, ms = 3200) => { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms); };
 const geo = () => GEO[state.geo];
-const proj = () => { const lat0 = geo().center[1]; const kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.574; return { f: (lon, lat) => [lon * kx, lat * ky], inv: (x, y) => [x / kx, y / ky] }; };
+const proj = () => { let lat0 = geo().center[1]; try { const c = map.getCenter(); if (Math.abs(c.lat - lat0) > 3 || Math.abs(c.lng - geo().center[0]) > 3) lat0 = c.lat; } catch (e) {} const kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.574; return { f: (lon, lat) => [lon * kx, lat * ky], inv: (x, y) => [x / kx, y / ky] }; };
 function centroid(g) {
   if (g.type === 'Point') return g.coordinates;
   const ring = g.type === 'Polygon' ? g.coordinates[0] : g.type === 'MultiPolygon' ? g.coordinates.reduce((a, p) => p[0].length > a.length ? p[0] : a, []) : g.coordinates;
@@ -138,10 +138,14 @@ $('#pickcancel').onclick = e => { e.stopPropagation(); state.pick = null; $('#pi
 function fit(L) { let b = [Infinity, Infinity, -Infinity, -Infinity]; if (L.kind === 'raster') b = L.raster.bbox; else for (const f of L.fc.features) { const walk = c => typeof c[0] === 'number' ? (b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]) : c.forEach(walk); walk(f.geometry.coordinates); } map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, duration: 600, maxZoom: 16 }); }
 
 // ---------------------------------------------------------------- blocks & UI (CARTO-style)
-import { BLOCKS, GROUPS } from './blocks.js?v=7';
+import { BLOCKS, GROUPS } from './blocks.js?v=8';
 const ctx = { state, map, S, C, h3, addLayer, render, restyle, fit, legend, geo, proj, xyKm, lonlat, props, vals, numFields, allFields, kindOf, fmt, esc, kpi, anchor, circlePoly, pickPoint, rasterAt, readAny, toCSV, CAT, LISA_C, GI_C, NDVI, centroid, css, toast };
 const HIDDEN = new Set(['load', 'upload', 'style', 'export']);
 const ICON = {
+  summarise: '<path d="M4 6h16M4 12h10M4 18h6"/>',
+  calc: '<path d="M5 4h14v16H5zM8 8h8M8 12h2m3 0h3M8 16h2m3 0h3"/>',
+  centroids: '<rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="2"/>',
+  cv: '<path d="M4 18l5-6 4 3 7-9"/><path d="M4 4v16h16"/>',
   filter: '<path d="M4 5h16l-6 7v6l-4 2v-8z"/>',
   explore: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>',
   nearest: '<circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/>',

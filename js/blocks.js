@@ -169,6 +169,59 @@ export const BLOCKS = [
       ctx.fit(N);
       return { html: `<div class="kpis">${ctx.kpi(feats.length.toLocaleString(), 'kept')}${ctx.kpi(L.fc.features.length.toLocaleString(), 'in the layer')}</div>`, read: `Kept features where <b>${ctx.esc(desc)}</b>. The new layer <b>${ctx.esc(nm)}</b> works in every other tool: DBSCAN, Distance to nearest, weights.` };
     } },
+  { id: 'summarise', group: 'sd', name: 'Summarise by group', what: 'One row per category: how many, and the average, total or share of a field. Makes a point layer at each group’s average location.',
+    params: [lay('Layer', ['point', 'polygon', 'line']), { k: 'by', label: 'Group by', type: 'field', of: 'layer' }, { k: 'stat', label: 'Statistic', type: 'select', options: [['count', 'count only'], ['mean', 'average of'], ['sum', 'total of'], ['share', 'share where … equals'], ['median', 'median of']] },
+      { k: 'f', label: 'Field', type: 'field', of: 'layer', show: p => p.stat && p.stat !== 'count' }, { k: 'eq', label: '… equals', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f), show: p => p.stat === 'share' && !!p.f }],
+    async run(p, ctx) {
+      const L = getL(ctx, p.layer); if (!p.by) throw new Error('Choose a field to group by.');
+      const ll = ctx.lonlat(L), G = new Map(), nf = ctx.numFields(L);
+      L.fc.features.forEach((f, i) => { const k = String(f.properties[p.by] ?? ''); if (!G.has(k)) G.set(k, { n: 0, x: 0, y: 0, v: [], hit: 0, sums: {} }); const g = G.get(k); g.n++; g.x += ll[i][0]; g.y += ll[i][1];
+        for (const q of nf) { const z = +f.properties[q]; if (Number.isFinite(z)) { g.sums[q] = g.sums[q] || [0, 0]; g.sums[q][0] += z; g.sums[q][1]++; } }
+        if (p.f) { const z = f.properties[p.f]; if (p.stat === 'share') { if (String(z ?? '') === String(p.eq ?? '')) g.hit++; } else if (Number.isFinite(+z) && z !== '') g.v.push(+z); } });
+      const val = g => p.stat === 'mean' ? g.v.reduce((s, z) => s + z, 0) / (g.v.length || NaN) : p.stat === 'sum' ? g.v.reduce((s, z) => s + z, 0) : p.stat === 'median' ? ctx.S.quantile(g.v, 0.5) : p.stat === 'share' ? g.hit / g.n : g.n;
+      const label = p.stat === 'count' ? 'n' : p.stat === 'share' ? `share_${p.f}_${p.eq}` : `${p.stat}_${p.f}`;
+      const rows = [...G.entries()].map(([k, g]) => ({ k, g, v: val(g) })).sort((a, b) => (b.v || 0) - (a.v || 0));
+      const total = L.fc.features.length;
+      const feats = rows.map(({ k, g, v }) => { const pr = { [p.by]: k, n: g.n, share_of_all: +(g.n / total).toFixed(4) }; if (p.stat !== 'count') pr[label.replace(/\W+/g, '_')] = +(+v).toFixed(4); for (const [q, [s, c]] of Object.entries(g.sums)) if (q !== p.by && !/^(lat|lon|latitude|longitude|x|y)$/i.test(q)) pr['mean_' + q] = +(s / c).toFixed(4); return { type: 'Feature', properties: pr, geometry: { type: 'Point', coordinates: [g.x / g.n, g.y / g.n] } }; });
+      ctx.state.nSum = (ctx.state.nSum || 0) + 1;
+      const id = 'summary' + ctx.state.nSum, nm = `Summary of ${L.name.split(' (')[0]} by ${p.by}`;
+      const fld = p.stat === 'count' ? 'n' : label.replace(/\W+/g, '_');
+      ctx.addLayer({ id, name: nm, kind: 'point', fc: { type: 'FeatureCollection', features: feats }, style: { mode: 'seq', field: fld, radius: 9 } });
+      const show = rows.slice(0, 40).map(({ k, g, v }) => [ctx.esc(k === '' ? '(blank)' : k), g.n.toLocaleString(), (100 * g.n / total).toFixed(1) + '%', p.stat === 'count' ? '' : p.stat === 'share' ? (100 * v).toFixed(1) + '%' : ctx.fmt(v)]);
+      return { html: `<div class="kpis">${ctx.kpi(rows.length.toLocaleString(), 'groups')}${ctx.kpi(total.toLocaleString(), 'features')}${ctx.kpi(rows[0] ? (100 * rows[0].g.n / total).toFixed(1) + '%' : '', 'in the largest group')}</div>`,
+        nodes: [ctx.C.table([p.by, 'count', 'share of all', p.stat === 'count' ? '' : label], show)], read: `Layer <b>${ctx.esc(nm)}</b> has one point per group, at the group’s average location, with the count, ${p.stat === 'count' ? '' : `<b>${ctx.esc(fld)}</b>, `}and the average of every numeric field (mean_…). Use it in Kriging, Regression or Filter features.` };
+    } },
+  { id: 'calc', group: 'sd', name: 'Calculate a field', what: 'Make a new column: a 0/1 flag, classes from thresholds, a ratio, or each value minus its group average.',
+    params: [lay('Layer', ['point', 'polygon', 'line']), { k: 'mode', label: 'Make', type: 'select', options: [['flag', '1/0 flag: field equals …'], ['classes', 'classes from thresholds'], ['ratio', 'ratio: field A ÷ field B'], ['demean', 'value minus its group average']] },
+      { k: 'f', label: 'Field', type: 'field', of: 'layer' },
+      { k: 'eq', label: '… equals', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f), show: p => p.mode === 'flag' && !!p.f },
+      { k: 'cuts', label: 'Thresholds (e.g. 500, 5000)', type: 'str', def: '', show: p => p.mode === 'classes' },
+      { k: 'labels', label: 'Class names (low → high)', type: 'str', def: 'low, medium, high', show: p => p.mode === 'classes' },
+      { k: 'f2', label: 'Divide by', type: 'field', of: 'layer', numeric: true, show: p => p.mode === 'ratio' },
+      { k: 'grp', label: 'Group by', type: 'field', of: 'layer', show: p => p.mode === 'demean' },
+      { k: 'out', label: 'New field name', type: 'str', def: '' }],
+    async run(p, ctx) {
+      const L = getL(ctx, p.layer); if (!p.f) throw new Error('Choose a field.'); const F = L.fc.features; let out = (p.out || '').trim().replace(/\W+/g, '_');
+      if (p.mode === 'flag') { out = out || `${p.f}_is_${String(p.eq).replace(/\W+/g, '_')}`; F.forEach(f => f.properties[out] = String(f.properties[p.f] ?? '') === String(p.eq ?? '') ? 1 : 0); }
+      else if (p.mode === 'classes') { const cuts = String(p.cuts).split(/[,;\s]+/).filter(Boolean).map(Number).sort((a, b) => a - b); if (!cuts.length || cuts.some(x => !isFinite(x))) throw new Error('Type one or more numbers, e.g. 500, 5000.'); const labs = String(p.labels).split(',').map(s => s.trim()).filter(Boolean); while (labs.length < cuts.length + 1) labs.push('class ' + (labs.length + 1)); out = out || `${p.f}_class`; F.forEach(f => { const z = +f.properties[p.f]; if (!Number.isFinite(z)) { f.properties[out] = ''; return; } let k = 0; while (k < cuts.length && z > cuts[k]) k++; f.properties[out] = labs[k]; }); }
+      else if (p.mode === 'ratio') { if (!p.f2) throw new Error('Choose the field to divide by.'); out = out || `${p.f}_per_${p.f2}`; F.forEach(f => { const a = +f.properties[p.f], c = +f.properties[p.f2]; f.properties[out] = Number.isFinite(a) && Number.isFinite(c) && c !== 0 ? +(a / c).toFixed(6) : null; }); }
+      else { if (!p.grp) throw new Error('Choose the field to group by.'); const m = new Map(); F.forEach(f => { const z = +f.properties[p.f]; if (!Number.isFinite(z)) return; const k = String(f.properties[p.grp]); const s = m.get(k) || [0, 0]; s[0] += z; s[1]++; m.set(k, s); }); out = out || `${p.f}_minus_${p.grp}_avg`; F.forEach(f => { const z = +f.properties[p.f], s = m.get(String(f.properties[p.grp])); f.properties[out] = Number.isFinite(z) && s ? +(z - s[0] / s[1]).toFixed(4) : null; }); }
+      const v = F.map(f => f.properties[out]); const num = v.some(z => typeof z === 'number');
+      ctx.restyle(L, num && p.mode !== 'flag' ? { mode: p.mode === 'demean' ? 'div' : 'seq', field: out } : { mode: 'cat', field: out });
+      const cnt = new Map(); if (!num || p.mode === 'flag') v.forEach(z => cnt.set(String(z), (cnt.get(String(z)) || 0) + 1));
+      return { nodes: cnt.size ? [ctx.C.bars([...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10))] : [ctx.C.histogram(v.filter(Number.isFinite), { xl: out })], read: `Added <b>${ctx.esc(out)}</b> to every feature of ${ctx.esc(L.name)}.` };
+    } },
+  { id: 'centroids', group: 'sd', name: 'Points from shapes', what: 'One point at the centre of each polygon or line, optionally nudged by a random distance (to mimic a second data vendor).',
+    params: [lay('Shapes', ['polygon', 'line']), { k: 'jit', label: 'Random nudge (metres, 0 = none)', type: 'number', def: 0, min: 0 }],
+    async run(p, ctx) {
+      const L = getL(ctx, p.layer), r = ctx.S.rng(14), gauss = () => { let u = 0, v = 0; while (!u) u = r(); v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+      const feats = L.fc.features.map(f => { const g = f.geometry; let x, y; if (g.type === 'Polygon' || g.type === 'MultiPolygon') { const ring = g.type === 'Polygon' ? g.coordinates[0] : g.coordinates[0][0]; let a = Infinity, b2 = Infinity, c = -Infinity, d = -Infinity; for (const [px, py] of ring) { a = Math.min(a, px); b2 = Math.min(b2, py); c = Math.max(c, px); d = Math.max(d, py); } x = (a + c) / 2; y = (b2 + d) / 2; } else [x, y] = ctx.centroid(g);
+        if (p.jit > 0) { x += gauss() * p.jit / (111320 * Math.cos(y * Math.PI / 180)); y += gauss() * p.jit / 111320; }
+        return { type: 'Feature', properties: { ...f.properties }, geometry: { type: 'Point', coordinates: [x, y] } }; });
+      const id = L.id + (p.jit > 0 ? `_pts_${p.jit}m` : '_pts');
+      ctx.addLayer({ id, name: `Points of ${L.name.split(' (')[0]}${p.jit > 0 ? ` (nudged ±${p.jit} m)` : ''}`, kind: 'point', fc: { type: 'FeatureCollection', features: feats }, style: { mode: 'single', color: ctx.css('--g-hot'), radius: 3 } });
+      return { html: `<div class="kpis">${ctx.kpi(feats.length.toLocaleString(), 'points')}</div>`, read: p.jit > 0 ? `Each point is the shape’s centre moved by a random ~${p.jit} m, like a second vendor measuring the same buildings slightly differently. Now try matching them back by location (Distance to nearest → Also copy from nearest) and compare with matching by ID.` : 'One point per shape, at its centre.' };
+    } },
   { id: 'boxdist', group: 'sd', name: 'Box filter, then distance', what: 'A cheap square filter first, then the exact distance on what is left: how spatial indexes work.',
     params: [lay(), { k: 'point', label: 'Centre', type: 'point' }, { k: 'km', label: 'Radius (km)', type: 'number', def: 3, step: 0.5, min: 0.1 }],
     async run(p, ctx) {
@@ -186,13 +239,17 @@ export const BLOCKS = [
     params: [lay('Points', ['point'], { prefer: ['cafes', 'hawker', 'hdb'] }), lay('Polygons', ['polygon'], { k: 'poly', prefer: ['district', 'planning'] }), { k: 'namef', label: 'Polygon name field', type: 'field', of: 'poly', prefer: ['district', 'PLN_AREA_N', 'name'] }],
     async run(p, ctx) {
       const L = getL(ctx, p.layer, 'points'), G = getL(ctx, p.poly, 'polygons');
-      const polys = G.fc.features.map(f => ({ name: f.properties[p.namef], rings: f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates }));
+      const bb = r => { let a = Infinity, b2 = Infinity, c = -Infinity, d = -Infinity; for (const [x, y] of r) { if (x < a) a = x; if (y < b2) b2 = y; if (x > c) c = x; if (y > d) d = y; } return [a, b2, c, d]; };
+      const polys = G.fc.features.map(f => { const rings = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates; return { name: f.properties[p.namef], rings, boxes: rings.map(r => bb(r[0])) }; });
       const cnt = new Map(); const ll = ctx.lonlat(L);
-      L.fc.features.forEach((f, i) => { const [x, y] = ll[i]; const hit = polys.find(P => P.rings.some(r => ctx.S.pointInRing(x, y, r[0]) && !r.slice(1).some(h => ctx.S.pointInRing(x, y, h)))); f.properties[p.namef] = hit ? hit.name : 'outside'; cnt.set(f.properties[p.namef], (cnt.get(f.properties[p.namef]) || 0) + 1); });
+      const out = L.fc.features.length && p.namef in L.fc.features[0].properties ? p.namef + '_joined' : p.namef;
+      let same = 0, both = 0;
+      L.fc.features.forEach((f, i) => { const [x, y] = ll[i]; const hit = polys.find(P => P.rings.some((r, k) => { const B = P.boxes[k]; return x >= B[0] && x <= B[2] && y >= B[1] && y <= B[3] && ctx.S.pointInRing(x, y, r[0]) && !r.slice(1).some(h => ctx.S.pointInRing(x, y, h)); })); f.properties[out] = hit ? hit.name : 'outside'; cnt.set(f.properties[out], (cnt.get(f.properties[out]) || 0) + 1); if (out !== p.namef) { both++; if (String(f.properties[out]) === String(f.properties[p.namef])) same++; } });
       G.fc.features.forEach(f => f.properties.n_points = cnt.get(f.properties[p.namef]) || 0);
+      const agree = both ? `<div class="kpis">${ctx.kpi((100 * same / both).toFixed(1) + '%', 'points whose own ' + ctx.esc(p.namef) + ' matches the polygon they fall in')}${ctx.kpi((both - same).toLocaleString(), 'mismatched')}</div>` : '';
       ctx.restyle(G, { mode: 'seq', field: 'n_points' }); ctx.restyle(L, { mode: 'single', color: ctx.css('--ink'), radius: 3 });
       const items = [...cnt.entries()].sort((a, b) => b[1] - a[1]);
-      return { nodes: [ctx.C.bars(items.slice(0, 12))], read: `${items.length} polygons received points. The field <b>${ctx.esc(p.namef)}</b> was added to each point; <b>n_points</b> to each polygon.${cnt.get('outside') ? ` ${cnt.get('outside')} points fall outside every polygon.` : ''}` };
+      return { html: agree, nodes: [ctx.C.bars(items.slice(0, 12))], read: `${items.length} polygons received points. The field <b>${ctx.esc(out)}</b> was added to each point; <b>n_points</b> to each polygon.${cnt.get('outside') ? ` ${cnt.get('outside')} points fall outside every polygon.` : ''}` };
     } },
   { id: 'h3bin', group: 'sd', name: 'H3 hexagon bins', what: 'Drop points into Uber’s global hexagon grid and count per cell. Optionally include empty cells.',
     params: [lay('Points', ['point']), { k: 'res', label: 'Resolution', type: 'select', options: [['6', '6 · ~36 km² cells'], ['7', '7 · ~5 km²'], ['8', '8 · ~0.74 km²'], ['9', '9 · ~0.1 km²']], def: '8' }, { k: 'meanf', label: 'Also average', type: 'field', of: 'layer', numeric: true, optional: true }, { k: 'zeros', label: 'Empty cells', type: 'select', options: [['no', 'Leave out'], ['yes', 'Include (needed for statistics)']] }, { k: 'extrude', label: '3D columns', type: 'select', options: [['no', 'No'], ['yes', 'Yes']] }],
@@ -321,7 +378,7 @@ export const BLOCKS = [
       return { html, read: truth ? 'Compare with the hidden original: tick it on in the Layers box. IDW reproduces broad patterns but smears small features between samples.' : 'Each cell is a weighted average of the 12 nearest samples, weight = 1 ÷ distance^power. Higher power makes the surface more local.' };
     } },
   { id: 'krige', group: 'surf', name: 'Kriging surface', what: 'Fit how similarity fades with distance (variogram), then predict every cell with an uncertainty map.',
-    params: [ptLayer('Sample points'), { k: 'field', label: 'Value', type: 'field', of: 'layer', numeric: true, prefer: ['value', 'price_psm'] }, { k: 'cell', label: 'Cell size (m)', type: 'number', def: 30 }],
+    params: [ptLayer('Sample points'), { k: 'field', label: 'Value', type: 'field', of: 'layer', numeric: true, prefer: ['value', 'price_psm'] }, { k: 'cell', label: 'Cell size (m)', type: 'number', def: 30 }, { k: 'thr', label: 'Report share of map above (optional)', type: 'str', def: '' }],
     async run(p, ctx, say) {
       const L = getL(ctx, p.layer, 'points'), all = ctx.xyKm(L), v0 = ctx.vals(L, p.field), keep = v0.map((v, i) => Number.isFinite(v) ? i : -1).filter(i => i >= 0);
       const xy = keep.map(i => all[i]), v = keep.map(i => v0[i]); const truth = L.truth ? ctx.state.layers.get(L.truth) : null;
@@ -332,18 +389,42 @@ export const BLOCKS = [
       ctx.addLayer({ id: L.id + '_krige_se', name: `Kriging uncertainty (std. error)`, kind: 'raster', raster: { w: grid.nx, h: grid.ny, bbox: grid.bboxLL, data: k.se }, style: { stops: seStops(Array.from(k.se)), label: 'std. error' }, visible: false });
       ctx.addLayer({ id: L.id + '_krige', name: `Kriging surface of ${p.field}`, kind: 'raster', raster: { w: grid.nx, h: grid.ny, bbox: grid.bboxLL, data: k.pred }, style: { stops: p.field === 'value' && truth ? ctx.NDVI : seqStops(Array.from(k.pred)), label: p.field } });
       let html = ''; if (truth) html = `<div class="kpis">${ctx.kpi(rmse(k.pred, truth.raster.data).toFixed(3), 'error vs truth (RMSE)')}</div>`;
+      if (String(p.thr).trim() !== '' && isFinite(+p.thr)) { const t = +p.thr; let n = 0, a = 0; for (const z of k.pred) if (Number.isFinite(z)) { n++; if (z >= t) a++; } html += `<div class="kpis">${ctx.kpi((100 * a / n).toFixed(0) + '%', `of the mapped area at or above ${ctx.fmt(t)}`)}${ctx.kpi(ctx.fmt(Math.min(...Array.from(k.pred).filter(Number.isFinite))) + ' to ' + ctx.fmt(Math.max(...Array.from(k.pred).filter(Number.isFinite))), 'surface range')}</div>`; }
       return { html, nodes: [ctx.C.lineChart(vg.lags, vg.gam, { xl: 'distance between pairs (km)', yl: 'semivariance', model: vg.fit.model })], read: `Similarity fades out at about <b>${vg.fit.range.toFixed(2)} km</b> (the range). Beyond that, samples tell you nothing about each other. Tick on <b>Kriging uncertainty</b> in Layers: it is lowest next to samples and highest in the gaps, which a manager can use to decide where to collect more data.` };
     } },
 
+  { id: 'cv', group: 'surf', name: 'Test predictions (cross-validation)', what: 'Hide part of the data, predict it from the rest, measure the error. Compare methods under two exams: random rows out, or whole groups (e.g. stations) out.',
+    params: [ptLayer('Sample points'), { k: 'field', label: 'Value to predict', type: 'field', of: 'layer', numeric: true },
+      { k: 'xs', label: 'Regression uses (x)', type: 'fields', of: 'layer', numeric: true, exclude: 'field' },
+      { k: 'grp', label: 'Group for exam 2 (e.g. station)', type: 'field', of: 'layer', optional: true }, { k: 'folds', label: 'Folds', type: 'number', def: 5, min: 2 }],
+    async run(p, ctx, say) {
+      const L = getL(ctx, p.layer, 'points'), all = ctx.xyKm(L), v0 = ctx.vals(L, p.field), P = ctx.props(L);
+      const keep = v0.map((v, i) => Number.isFinite(v) && (p.xs || []).every(x => Number.isFinite(+P[i][x])) ? i : -1).filter(i => i >= 0);
+      if (keep.length < 10) throw new Error('Too few complete rows.');
+      const xy = keep.map(i => all[i]), y = keep.map(i => v0[i]), X = keep.map(i => (p.xs || []).map(x => +P[i][x])), n = keep.length, K = Math.max(2, Math.min(p.folds | 0, n));
+      const r = ctx.S.rng(0), perm = [...Array(n).keys()].sort(() => r() - 0.5), foldRand = new Array(n); perm.forEach((i, k) => foldRand[i] = k % K);
+      let foldGrp = null; if (p.grp) { const ids = [...new Set(keep.map(i => String(P[i][p.grp])))].sort(() => r() - 0.5), m = new Map(ids.map((g, k) => [g, k % K])); foldGrp = keep.map(i => m.get(String(P[i][p.grp]))); }
+      const methods = { 'IDW (location only)': (tr, te) => { const g = new ctx.S.GridIndex(tr.map(i => xy[i])); return te.map(i => ctx.S.idwAt(tr.map(j => xy[j]), tr.map(j => y[j]), xy[i][0], xy[i][1], 2, 12, g)); },
+        'Kriging (location only)': (tr, te) => { const m = new Map(); tr.forEach(j => { const k = xy[j][0].toFixed(4) + ',' + xy[j][1].toFixed(4); const s = m.get(k) || [xy[j], 0, 0]; s[1] += y[j]; s[2]++; m.set(k, s); }); const u = [...m.values()], uxy = u.map(s => s[0]), uv = u.map(s => s[1] / s[2]); const vg = ctx.S.variogram(uxy, uv), g = new ctx.S.GridIndex(uxy); const mu = uv.reduce((a, b) => a + b, 0) / uv.length; return te.map(i => { const z = ctx.S.krigeAt(uxy, uv, xy[i][0], xy[i][1], vg.fit.model, Math.min(16, uxy.length), g)[0]; return Number.isFinite(z) ? z : mu; }); } };
+      if ((p.xs || []).length) methods[`Regression (OLS on ${p.xs.join(', ')})`] = (tr, te) => { const o = ctx.S.ols(tr.map(j => y[j]), tr.map(j => X[j]), p.xs); return te.map(i => o.b[0] + X[i].reduce((s, z, k) => s + z * o.b[k + 1], 0)); };
+      const exam = folds => { const res = {}; for (const [nm, f] of Object.entries(methods)) { let se = 0, c = 0; for (let k = 0; k < K; k++) { const te = [], tr = []; for (let i = 0; i < n; i++) (folds[i] === k ? te : tr).push(i); if (!te.length || tr.length < 5) continue; const pr = f(tr, te); te.forEach((i, t) => { if (Number.isFinite(pr[t])) { se += (pr[t] - y[i]) ** 2; c++; } }); } res[nm] = Math.sqrt(se / c); } return res; };
+      say('Exam 1: random rows out…'); await new Promise(rs => setTimeout(rs, 20)); const e1 = exam(foldRand);
+      let e2 = null; if (foldGrp) { say('Exam 2: whole groups out…'); await new Promise(rs => setTimeout(rs, 20)); e2 = exam(foldGrp); }
+      const names = Object.keys(methods), best1 = names.reduce((a, b) => e1[a] <= e1[b] ? a : b), best2 = e2 ? names.reduce((a, b) => e2[a] <= e2[b] ? a : b) : null;
+      const rows = names.map(nm => [ctx.esc(nm), (nm === best1 ? '★ ' : '') + e1[nm].toFixed(3), e2 ? (nm === best2 ? '★ ' : '') + e2[nm].toFixed(3) : '—']);
+      return { html: `<div class="kpis">${ctx.kpi(n.toLocaleString(), 'rows')}${ctx.kpi(K, 'folds')}${p.grp ? ctx.kpi(new Set(keep.map(i => String(P[i][p.grp]))).size, 'groups') : ''}</div>`, nodes: [ctx.C.table(['Method', 'Exam 1: random rows (RMSE)', `Exam 2: ${p.grp ? ctx.esc(p.grp) + ' out' : 'not set'} (RMSE)`], rows)],
+        read: `Lower is better. Exam 1 hides random rows, so the same place usually stays in training. ${p.grp ? `Exam 2 hides whole <b>${ctx.esc(p.grp)}</b> groups: the honest test for predicting places you have never measured. If the winner changes between exams, trust exam 2 for new locations.` : 'Set a group field to run the second, stricter exam.'}` };
+    } },
   // ------------------------------------------------------------ EXPLAIN
   { id: 'distto', group: 'reg', name: 'Distance to nearest', what: 'Add a field: distance from each feature to the nearest feature of another layer, or to a point.',
-    params: [lay('Add field to', ['point', 'polygon'], { prefer: ['_h3', 'hdb'] }), { k: 'to', label: 'Distance to', type: 'select', options: [['layer', 'nearest feature of a layer'], ['point', 'a fixed point']] }, lay('Layer', ['point', 'polygon'], { k: 'tolayer', show: p => p.to === 'layer', prefer: ['LATEST'] }), { k: 'point', label: 'Point', type: 'point', show: p => p.to === 'point' }, { k: 'name', label: 'Field name', type: 'select', options: ['metro', 'mrt', 'hawker', 'cbd', 'cyberhub', 'school', 'park', 'poi', 'cafe_cluster', 'food_market', 'rival'] }],
+    params: [lay('Add field to', ['point', 'polygon'], { prefer: ['_h3', 'hdb'] }), { k: 'to', label: 'Distance to', type: 'select', options: [['layer', 'nearest feature of a layer'], ['point', 'a fixed point']] }, lay('Layer', ['point', 'polygon'], { k: 'tolayer', show: p => p.to === 'layer', prefer: ['LATEST'] }), { k: 'point', label: 'Point', type: 'point', show: p => p.to === 'point' }, { k: 'copy', label: 'Also copy from nearest', type: 'field', of: 'tolayer', optional: true, show: p => p.to === 'layer' }, { k: 'name', label: 'Field name', type: 'select', options: ['metro', 'mrt', 'hawker', 'cbd', 'cyberhub', 'school', 'park', 'poi', 'cafe_cluster', 'food_market', 'rival', 'nearest'] }],
     async run(p, ctx) {
       const L = getL(ctx, p.layer), field = `dist_${p.name}_km`, A = ctx.xyKm(L); let d;
       if (p.to === 'point') { const [lon, lat] = pointLL(p, ctx); d = ctx.lonlat(L).map(([x, y]) => ctx.S.haversine(lat, lon, y, x)); }
-      else { const T = getL(ctx, p.tolayer); if (T === L) throw new Error('Pick a different layer to measure to.'); const B = ctx.xyKm(T), g = new ctx.S.GridIndex(B); d = A.map(([x, y]) => g.knn(x, y, 1)[0][1]); }
+      else { const T = getL(ctx, p.tolayer); if (T === L) throw new Error('Pick a different layer to measure to.'); const B = ctx.xyKm(T), g = new ctx.S.GridIndex(B); const nn = A.map(([x, y]) => g.knn(x, y, 1)[0]); d = nn.map(e => e[1]); if (p.copy) { const cf = p.copy + '_nearest'; let same = 0; L.fc.features.forEach((f, i) => { f.properties[cf] = T.fc.features[nn[i][0]].properties[p.copy]; if (String(f.properties[cf]) === String(f.properties[p.copy])) same++; }); p._match = p.copy in L.fc.features[0].properties ? [same, L.fc.features.length, cf] : [null, 0, cf]; } }
       L.fc.features.forEach((f, i) => f.properties[field] = +d[i].toFixed(3)); ctx.restyle(L, { mode: 'seq', field });
-      return { nodes: [ctx.C.histogram(d, { xl: field })], read: `Added <b>${field}</b>. Median ${ctx.fmt(ctx.S.quantile(d, 0.5))} km, maximum ${ctx.fmt(Math.max(...d))} km.` };
+      const mt = p._match && p._match[0] != null ? `<div class="kpis">${ctx.kpi((100 * p._match[0] / p._match[1]).toFixed(1) + '%', 'nearest feature has the SAME ' + ctx.esc(p.copy))}${ctx.kpi((p._match[1] - p._match[0]).toLocaleString(), 'matched to a neighbour instead')}</div>` : '';
+      return { html: mt, nodes: [ctx.C.histogram(d, { xl: field })], read: `${p._match ? `Copied <b>${ctx.esc(p._match[2])}</b> from the nearest feature. ` : ''}Added <b>${field}</b>. Median ${ctx.fmt(ctx.S.quantile(d, 0.5))} km, maximum ${ctx.fmt(Math.max(...d))} km.` };
     } },
   { id: 'ols', group: 'reg', name: 'Ordinary regression (OLS)', what: 'Explain a value with others, then test whether the errors are still clustered in space.',
     params: [lay('Layer', ['point', 'polygon'], { prefer: 'W' }), { k: 'y', label: 'Explain (y)', type: 'field', of: 'layer', numeric: true, prefer: ['count', 'price_psm'] }, { k: 'xs', label: 'Using (x)', type: 'fields', of: 'layer', numeric: true, exclude: 'y' }],

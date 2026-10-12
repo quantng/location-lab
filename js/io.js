@@ -2,6 +2,7 @@
 import { parquetReadObjects, parquetMetadataAsync } from '../lib/hyparquet/index.js';
 
 export async function readAny(buf, name) {
+  if (/\.gz$/i.test(name)) { const ds = new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))); buf = await ds.arrayBuffer(); name = name.replace(/\.gz$/i, ''); }
   const ext = name.toLowerCase().split('.').pop();
   if (ext === 'geojson' || ext === 'json') return JSON.parse(new TextDecoder().decode(buf));
   if (ext === 'parquet') return readGeoParquet(buf);
@@ -51,8 +52,20 @@ export async function readFGB(buf) {
 
 export function readCSV(text) {
   const rows = parseCSV(text); const head = rows.shift().map(h => h.trim());
+  const H = n => head.findIndex(h => h.toLowerCase() === n);
+  const typed = r => { const props = {}; head.forEach((h, i) => { const v = r[i]; props[h] = v !== '' && v !== undefined && !isNaN(+v) ? +v : v; }); return props; };
+  // bounding boxes → rectangles (e.g. Overture buildings)
+  if ([H('xmin'), H('xmax'), H('ymin'), H('ymax')].every(i => i >= 0)) {
+    const [a, b, c, d] = [H('xmin'), H('xmax'), H('ymin'), H('ymax')];
+    return { type: 'FeatureCollection', features: rows.filter(r => r.length >= head.length && isFinite(+r[a]) && r[a] !== '').map(r => { const x0 = +r[a], x1 = +r[b], y0 = +r[c], y1 = +r[d]; return { type: 'Feature', properties: typed(r), geometry: { type: 'Polygon', coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]] } }; }) };
+  }
+  // origin–destination pairs → flow lines (e.g. freight lanes)
+  const ol = head.findIndex(h => /^(orig|origin|o)_lat$/i.test(h)), oo = head.findIndex(h => /^(orig|origin|o)_(lon|lng)$/i.test(h)), dl = head.findIndex(h => /^(dest|destination|d)_lat$/i.test(h)), dd = head.findIndex(h => /^(dest|destination|d)_(lon|lng)$/i.test(h));
+  if ([ol, oo, dl, dd].every(i => i >= 0)) {
+    return { type: 'FeatureCollection', features: rows.filter(r => r.length >= head.length).map(r => { const p = [+r[oo], +r[ol]], q = [+r[dd], +r[dl]]; if (![...p, ...q].every(isFinite)) return null; const mid = [(p[0] + q[0]) / 2 - (q[1] - p[1]) * 0.15, (p[1] + q[1]) / 2 + (q[0] - p[0]) * 0.15]; const arc = []; for (let t = 0; t <= 1.0001; t += 0.1) arc.push([(1 - t) ** 2 * p[0] + 2 * (1 - t) * t * mid[0] + t * t * q[0], (1 - t) ** 2 * p[1] + 2 * (1 - t) * t * mid[1] + t * t * q[1]]); return { type: 'Feature', properties: typed(r), geometry: { type: 'LineString', coordinates: arc } }; }).filter(Boolean) };
+  }
   const lat = head.findIndex(h => /^(lat|latitude|y)$/i.test(h)), lon = head.findIndex(h => /^(lon|lng|long|longitude|x)$/i.test(h));
-  if (lat < 0 || lon < 0) throw new Error('The CSV needs latitude and longitude columns (named lat/latitude and lon/lng/longitude).');
+  if (lat < 0 || lon < 0) throw new Error('The CSV needs latitude and longitude columns (lat/latitude and lon/lng/longitude), or xmin/xmax/ymin/ymax for boxes, or orig_lat/orig_lon/dest_lat/dest_lon for flows.');
   const features = [];
   for (const r of rows) {
     if (r.length < head.length) continue;
