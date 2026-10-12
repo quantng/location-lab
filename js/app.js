@@ -271,6 +271,18 @@ $('#closeres').onclick = () => { $('#results').hidden = true; requestAnimationFr
 
 // ---------- layer cards
 const swatch = L => L.kind === 'raster' ? 'linear-gradient(90deg,#c8b88a,#5aa845,#14532d)' : (L.style.mode === 'cat' || L.style.mode === 'seq' || L.style.mode === 'div') ? 'conic-gradient(#2347b8,#c2410c,#0f7a73,#2347b8)' : (L.style.mode === 'heat' ? 'radial-gradient(#dc2626,#fde68a)' : (L.style.color || css('--accent')));
+// layer order: state.layers insertion order = drawing order (last = on top); cards list top layer first
+function applyOrder() {
+  const b = beforeId();
+  for (const L of state.layers.values()) for (const sfx of ['ras', 'heat', 'fill', 'line', 'circle', 'sel']) { const id = `${L.id}-${sfx}`; if (map.getLayer(id)) map.moveLayer(id, b); }
+  for (const L of state.layers.values()) if (map.getLayer(`${L.id}-ext`)) map.moveLayer(`${L.id}-ext`);
+}
+function moveLayer(id, dir) {
+  const arr = [...state.layers.entries()], i = arr.findIndex(e => e[0] === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]]; state.layers.clear(); arr.forEach(([k, v]) => state.layers.set(k, v));
+  applyOrder(); drawLayerCards(); syncLegend();
+}
 function drawLayerCards() {
   const box = $('#layercards');
   if (!state.layers.size) { box.innerHTML = '<p class="empty">No layers yet. Click <b>Add data</b>, or drop a file on the map.</p>'; return; }
@@ -280,10 +292,13 @@ function drawLayerCards() {
     const n = L.kind === 'raster' ? `${L.raster.w}×${L.raster.h} px` : `${L.fc.features.length.toLocaleString()} ${L.kind === 'point' ? 'points' : L.kind === 'polygon' ? 'areas' : 'lines'}`;
     c.innerHTML = `<div class="lhead"><span class="lsw ${L.kind}" style="background:${swatch(L)}"></span><div class="lname"><b title="${esc(L.name)}">${esc(L.name)}</b><small>${n}${L.W ? ' · neighbours set' : ''}</small></div>
       <button class="iconbtn" data-act="vis" aria-label="${L.visible ? 'Hide' : 'Show'} layer" title="${L.visible ? 'Hide' : 'Show'}">${L.visible ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M10.6 5.1A10 10 0 0112 5c7 0 11 7 11 7a18 18 0 01-3.2 3.9M6.1 6.1A18 18 0 001 12s4 7 11 7a10 10 0 004.9-1.3"/></svg>'}</button>
+      <button class="iconbtn" data-act="up" aria-label="Move layer up" title="Move up (draw on top)">▲</button><button class="iconbtn" data-act="down" aria-label="Move layer down" title="Move down (draw underneath)">▼</button>
       <button class="iconbtn" data-act="more" aria-label="More options" title="More">⋯</button></div>
       <div class="lbody">${L.kind !== 'raster' ? `<label for="col-${L.id}">Colour by</label><select id="col-${L.id}"><option value="">Single colour</option>${allFields(L).filter(f => !f.startsWith('_')).map(f => `<option ${L.style.field === f ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>` : ''}
       <div class="lmenu" hidden><button data-act="zoom">Zoom to</button>${L.kind !== 'raster' ? '<button data-act="table">Table</button><button data-act="csv">Download CSV</button><button data-act="geojson">Download GeoJSON</button>' : ''}<button data-act="remove">Remove</button></div></div>`;
     c.querySelector('[data-act=vis]').onclick = () => { L.visible = !L.visible; render(L); drawLayerCards(); syncLegend(); };
+    c.querySelector('[data-act=up]').onclick = () => moveLayer(L.id, +1);
+    c.querySelector('[data-act=down]').onclick = () => moveLayer(L.id, -1);
     c.querySelector('[data-act=more]').onclick = () => { const m = c.querySelector('.lmenu'); m.hidden = !m.hidden; };
     c.querySelector('[data-act=zoom]').onclick = () => fit(L);
     c.querySelector('[data-act=remove]').onclick = () => { for (const s of ['fill', 'line', 'circle', 'ext', 'heat', 'ras', 'sel']) if (map.getLayer(`${L.id}-${s}`)) map.removeLayer(`${L.id}-${s}`); if (map.getSource(L.id)) map.removeSource(L.id); state.layers.delete(L.id); drawLayerCards(); syncLegend(); };
