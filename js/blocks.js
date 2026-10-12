@@ -40,6 +40,8 @@ function regData(ctx, L, y, xs) {
   return { keep, Y: keep.map(i => +P[i][y]), X: keep.map(i => xs.map(x => +P[i][x])) };
 }
 function subW(W, keep) { if (keep.length === W.n) return W; const m = new Map(keep.map((k, i) => [k, i])); const nb = keep.map(k => W.nb[k].filter(j => m.has(j)).map(j => m.get(j))); return { n: keep.length, nb, wt: nb.map(a => a.map(() => 1 / Math.max(1, a.length))), label: W.label }; }
+const isNum = (ctx, p, f) => { const L = ctx.state.layers.get(p.layer); return !!(L && f && ctx.numFields(L).includes(f)); };
+const uniq = (ctx, p, f) => { const L = ctx.state.layers.get(p.layer); if (!L || !f) return [['', '—']]; const c = new Map(); for (const ft of L.fc.features) { const v = String(ft.properties[f] ?? ''); c.set(v, (c.get(v) || 0) + 1); } return [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60).map(([v, n]) => [v, `${v === '' ? '(blank)' : v} · ${n}`]); };
 const pfmt = p => p < 0.001 ? '< 0.001' : p.toFixed(3);
 
 export const BLOCKS = [
@@ -129,6 +131,43 @@ export const BLOCKS = [
         nodes.push(b);
       }
       return { html: `<div class="status">${rows.length} row${rows.length === 1 ? '' : 's'}</div>`, nodes };
+    } },
+  { id: 'filter', group: 'sd', name: 'Filter features', what: 'Keep only the features that meet up to four conditions, optionally the top N by a field. Makes a new layer you can use in any other tool.',
+    params: [lay('Layer', ['point', 'polygon']),
+      { k: 'f1', label: 'Condition 1: field', type: 'field', of: 'layer', optional: false },
+      { k: 'o1', label: '… is', type: 'select', options: [['eq', 'is / ='], ['ne', 'is not / ≠'], ['lt', '<'], ['le', '≤'], ['gt', '>'], ['ge', '≥']], show: p => !!p.f1 },
+      { k: 'c1', label: '… value', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f1), show: (p, ctx) => !!p.f1 && !isNum(ctx, p, p.f1) },
+      { k: 'n1', label: '… number', type: 'number', def: 0, step: 0.1, show: (p, ctx) => !!p.f1 && isNum(ctx, p, p.f1) },
+      { k: 'f2', label: 'Condition 2: field', type: 'field', of: 'layer', optional: true, show: p => !!p.f1 },
+      { k: 'o2', label: '… is', type: 'select', options: [['eq', 'is / ='], ['ne', 'is not / ≠'], ['lt', '<'], ['le', '≤'], ['gt', '>'], ['ge', '≥']], show: p => !!p.f2 },
+      { k: 'c2', label: '… value', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f2), show: (p, ctx) => !!p.f2 && !isNum(ctx, p, p.f2) },
+      { k: 'n2', label: '… number', type: 'number', def: 0, step: 0.1, show: (p, ctx) => !!p.f2 && isNum(ctx, p, p.f2) },
+      { k: 'f3', label: 'Condition 3: field', type: 'field', of: 'layer', optional: true, show: p => !!p.f2 },
+      { k: 'o3', label: '… is', type: 'select', options: [['eq', 'is / ='], ['ne', 'is not / ≠'], ['lt', '<'], ['le', '≤'], ['gt', '>'], ['ge', '≥']], show: p => !!p.f3 },
+      { k: 'c3', label: '… value', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f3), show: (p, ctx) => !!p.f3 && !isNum(ctx, p, p.f3) },
+      { k: 'n3', label: '… number', type: 'number', def: 0, step: 0.1, show: (p, ctx) => !!p.f3 && isNum(ctx, p, p.f3) },
+      { k: 'f4', label: 'Condition 4: field', type: 'field', of: 'layer', optional: true, show: p => !!p.f3 },
+      { k: 'o4', label: '… is', type: 'select', options: [['eq', 'is / ='], ['ne', 'is not / ≠'], ['lt', '<'], ['le', '≤'], ['gt', '>'], ['ge', '≥']], show: p => !!p.f4 },
+      { k: 'c4', label: '… value', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f4), show: (p, ctx) => !!p.f4 && !isNum(ctx, p, p.f4) },
+      { k: 'n4', label: '… number', type: 'number', def: 0, step: 0.1, show: (p, ctx) => !!p.f4 && isNum(ctx, p, p.f4) },
+      { k: 'sort', label: 'Then keep the top … by', type: 'field', of: 'layer', numeric: true, optional: true },
+      { k: 'top', label: 'How many (0 = all)', type: 'number', def: 0, min: 0, show: p => !!p.sort },
+      { k: 'name', label: 'Name the new layer', type: 'str', def: '' }],
+    async run(p, ctx) {
+      const L = getL(ctx, p.layer); if (!p.f1) throw new Error('Choose at least one field to filter on.');
+      const conds = [1, 2, 3, 4].filter(n => p['f' + n]).map(n => { const f = p['f' + n], num = isNum(ctx, p, f); return { f, op: p['o' + n] || 'eq', num, v: num ? +p['n' + n] : String(p['c' + n] ?? '') }; });
+      const test = (pr, c) => { const x = pr[c.f]; if (c.num) { const a = +x; if (!Number.isFinite(a)) return false; return { eq: a === c.v, ne: a !== c.v, lt: a < c.v, le: a <= c.v, gt: a > c.v, ge: a >= c.v }[c.op]; }
+        const s = String(x ?? ''); return { eq: s === c.v, ne: s !== c.v, lt: s < c.v, le: s <= c.v, gt: s > c.v, ge: s >= c.v }[c.op]; };
+      let feats = L.fc.features.filter(f => conds.every(c => test(f.properties, c)));
+      if (p.sort) { feats = feats.slice().sort((a, b) => (+b.properties[p.sort] || -Infinity) - (+a.properties[p.sort] || -Infinity)); if (p.top > 0) feats = feats.slice(0, p.top); }
+      if (!feats.length) throw new Error('No features meet these conditions. Loosen one of them.');
+      const sym = { eq: '=', ne: '≠', lt: '<', le: '≤', gt: '>', ge: '≥' };
+      const desc = conds.map(c => `${c.f} ${sym[c.op]} ${c.v}`).join(' · ') + (p.sort ? ` · top ${p.top || 'all'} by ${p.sort}` : '');
+      ctx.state.nFilter = (ctx.state.nFilter || 0) + 1;
+      const nm = (p.name || '').trim() || `Filter ${ctx.state.nFilter}: ${L.name.split(' (')[0]}`;
+      const N = ctx.addLayer({ id: 'filter' + ctx.state.nFilter, name: `${nm} (${feats.length})`, kind: L.kind, fc: { type: 'FeatureCollection', features: feats.map(f => ({ type: 'Feature', properties: { ...f.properties }, geometry: f.geometry })) }, style: L.kind === 'point' ? { mode: 'single', color: ctx.css('--g-hot'), radius: 7 } : { mode: 'single', color: ctx.css('--g-hot') } });
+      ctx.fit(N);
+      return { html: `<div class="kpis">${ctx.kpi(feats.length.toLocaleString(), 'kept')}${ctx.kpi(L.fc.features.length.toLocaleString(), 'in the layer')}</div>`, read: `Kept features where <b>${ctx.esc(desc)}</b>. The new layer <b>${ctx.esc(nm)}</b> works in every other tool: DBSCAN, Distance to nearest, weights.` };
     } },
   { id: 'boxdist', group: 'sd', name: 'Box filter, then distance', what: 'A cheap square filter first, then the exact distance on what is left: how spatial indexes work.',
     params: [lay(), { k: 'point', label: 'Centre', type: 'point' }, { k: 'km', label: 'Radius (km)', type: 'number', def: 3, step: 0.5, min: 0.1 }],

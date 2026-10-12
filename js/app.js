@@ -138,10 +138,11 @@ $('#pickcancel').onclick = e => { e.stopPropagation(); state.pick = null; $('#pi
 function fit(L) { let b = [Infinity, Infinity, -Infinity, -Infinity]; if (L.kind === 'raster') b = L.raster.bbox; else for (const f of L.fc.features) { const walk = c => typeof c[0] === 'number' ? (b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]) : c.forEach(walk); walk(f.geometry.coordinates); } map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, duration: 600, maxZoom: 16 }); }
 
 // ---------------------------------------------------------------- blocks & UI (CARTO-style)
-import { BLOCKS, GROUPS } from './blocks.js?v=6';
+import { BLOCKS, GROUPS } from './blocks.js?v=7';
 const ctx = { state, map, S, C, h3, addLayer, render, restyle, fit, legend, geo, proj, xyKm, lonlat, props, vals, numFields, allFields, kindOf, fmt, esc, kpi, anchor, circlePoly, pickPoint, rasterAt, readAny, toCSV, CAT, LISA_C, GI_C, NDVI, centroid, css, toast };
 const HIDDEN = new Set(['load', 'upload', 'style', 'export']);
 const ICON = {
+  filter: '<path d="M4 5h16l-6 7v6l-4 2v-8z"/>',
   explore: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>',
   nearest: '<circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/>',
   sql: '<path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
@@ -232,7 +233,8 @@ function drawParams(card) {
       inp.innerHTML = pts.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '<option value="pick">Click on the map…</option>' + (card.params._custom ? `<option value="custom">Your point (${card.params._custom.map(x => x.toFixed(4)).join(', ')})</option>` : '');
       inp.value = v === 'custom' && card.params._custom ? 'custom' : pts.some(p => p.id === v) ? v : pts[0].id; card.params[q.k] = inp.value;
       inp.addEventListener('change', async () => { if (inp.value === 'pick') { const ll = await pickPoint(); card.params._custom = ll; card.params[q.k] = 'custom'; drawParams(card); } else card.params[q.k] = inp.value; });
-    } else if (q.type === 'text') { inp = document.createElement('textarea'); inp.value = v ?? ''; inp.spellcheck = false; lab.style.gridColumn = '1/-1'; }
+    } else if (q.type === 'str') { inp = document.createElement('input'); inp.type = 'text'; inp.value = v ?? ''; }
+    else if (q.type === 'text') { inp = document.createElement('textarea'); inp.value = v ?? ''; inp.spellcheck = false; lab.style.gridColumn = '1/-1'; }
     else { inp = document.createElement('input'); inp.type = 'number'; inp.value = v; if (q.step) inp.step = q.step; if (q.min != null) inp.min = q.min; }
     inp.id = id;
     if (!['fields', 'point'].includes(q.type)) inp.addEventListener('change', () => { card.params[q.k] = q.type === 'number' ? +inp.value : inp.value; if ((card.B.params || []).some(o => o.of === q.k || o.show || typeof o.options === 'function')) drawParams(card); });
