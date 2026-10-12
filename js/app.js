@@ -138,7 +138,7 @@ $('#pickcancel').onclick = e => { e.stopPropagation(); state.pick = null; $('#pi
 function fit(L) { let b = [Infinity, Infinity, -Infinity, -Infinity]; if (L.kind === 'raster') b = L.raster.bbox; else for (const f of L.fc.features) { const walk = c => typeof c[0] === 'number' ? (b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]) : c.forEach(walk); walk(f.geometry.coordinates); } map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, duration: 600, maxZoom: 16 }); }
 
 // ---------------------------------------------------------------- blocks & UI (CARTO-style)
-import { BLOCKS, GROUPS } from './blocks.js?v=11';
+import { BLOCKS, GROUPS } from './blocks.js?v=12';
 const ctx = { state, map, S, C, h3, addLayer, render, restyle, fit, legend, geo, proj, xyKm, lonlat, props, vals, numFields, allFields, kindOf, fmt, esc, kpi, anchor, circlePoly, pickPoint, rasterAt, readAny, toCSV, CAT, LISA_C, GI_C, NDVI, centroid, css, toast };
 const HIDDEN = new Set(['load', 'upload', 'style', 'export']);
 const ICON = {
