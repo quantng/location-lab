@@ -93,7 +93,7 @@ function render(L) {
     addL({ id: `${L.id}-circle`, type: 'circle', source: L.id, layout: { visibility: vis }, paint: { 'circle-color': colorExpr(L), 'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, r * 0.7, 14, r * 1.8], 'circle-stroke-color': css('--surface'), 'circle-stroke-width': n > 3000 ? 0 : 0.8, 'circle-opacity': st.dimField ? ['case', ['to-boolean', ['get', st.dimField]], 1, 0.18] : 0.9 } });
   }
   addL({ id: `${L.id}-sel`, type: L.kind === 'polygon' ? 'line' : 'circle', source: L.id, filter: ['in', ['id'], ['literal', []]], paint: L.kind === 'polygon' ? { 'line-color': css('--ink'), 'line-width': 3 } : { 'circle-radius': 8, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': css('--ink'), 'circle-stroke-width': 2.5 } });
-  legend(L);
+  if (L.visible) legend(L);
 }
 function renderRaster(L, vis) {
   const R = L.raster, cv = document.createElement('canvas'); cv.width = R.w; cv.height = R.h; const g = cv.getContext('2d'), im = g.createImageData(R.w, R.h);
@@ -105,7 +105,7 @@ function renderRaster(L, vis) {
   const [x0, y0, x1, y1] = R.bbox;
   map.addSource(L.id, { type: 'image', url: cv.toDataURL(), coordinates: [[x0, y1], [x1, y1], [x1, y0], [x0, y0]] });
   addL({ id: `${L.id}-ras`, type: 'raster', source: L.id, layout: { visibility: vis }, paint: { 'raster-opacity': 0.88, 'raster-resampling': 'nearest' } });
-  legend(L);
+  if (L.visible) legend(L);
 }
 function legend(L) {
   const el = $('#legend'), st = L.style; let h = `<b>${esc(L.name)}${st.field ? ' · ' + esc(st.field) : ''}</b>`;
@@ -116,6 +116,7 @@ function legend(L) {
   else { el.hidden = true; return; }
   el.innerHTML = h; el.hidden = false;
 }
+function syncLegend() { const el = $('#legend'); el.hidden = true; for (const L of [...state.layers.values()].reverse()) { if (!L.visible) continue; legend(L); if (!el.hidden) return; } }
 function refreshLayerList() { drawLayerCards(); }
 function restyle(L, style) { L.style = { ...style }; render(L); drawLayerCards(); }
 
@@ -282,10 +283,10 @@ function drawLayerCards() {
       <button class="iconbtn" data-act="more" aria-label="More options" title="More">⋯</button></div>
       <div class="lbody">${L.kind !== 'raster' ? `<label for="col-${L.id}">Colour by</label><select id="col-${L.id}"><option value="">Single colour</option>${allFields(L).filter(f => !f.startsWith('_')).map(f => `<option ${L.style.field === f ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>` : ''}
       <div class="lmenu" hidden><button data-act="zoom">Zoom to</button>${L.kind !== 'raster' ? '<button data-act="table">Table</button><button data-act="csv">Download CSV</button><button data-act="geojson">Download GeoJSON</button>' : ''}<button data-act="remove">Remove</button></div></div>`;
-    c.querySelector('[data-act=vis]').onclick = () => { L.visible = !L.visible; render(L); drawLayerCards(); };
+    c.querySelector('[data-act=vis]').onclick = () => { L.visible = !L.visible; render(L); drawLayerCards(); syncLegend(); };
     c.querySelector('[data-act=more]').onclick = () => { const m = c.querySelector('.lmenu'); m.hidden = !m.hidden; };
     c.querySelector('[data-act=zoom]').onclick = () => fit(L);
-    c.querySelector('[data-act=remove]').onclick = () => { for (const s of ['fill', 'line', 'circle', 'ext', 'heat', 'ras', 'sel']) if (map.getLayer(`${L.id}-${s}`)) map.removeLayer(`${L.id}-${s}`); if (map.getSource(L.id)) map.removeSource(L.id); state.layers.delete(L.id); drawLayerCards(); $('#legend').hidden = true; };
+    c.querySelector('[data-act=remove]').onclick = () => { for (const s of ['fill', 'line', 'circle', 'ext', 'heat', 'ras', 'sel']) if (map.getLayer(`${L.id}-${s}`)) map.removeLayer(`${L.id}-${s}`); if (map.getSource(L.id)) map.removeSource(L.id); state.layers.delete(L.id); drawLayerCards(); syncLegend(); };
     const tb = c.querySelector('[data-act=table]'); if (tb) tb.onclick = () => openConfig('explore', { layer: L.id });
     const dl = (name, text, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); };
     const cs = c.querySelector('[data-act=csv]'); if (cs) cs.onclick = () => dl(`${L.id}.csv`, toCSV(L.fc), 'text/csv');
