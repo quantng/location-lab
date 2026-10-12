@@ -133,7 +133,7 @@ export const BLOCKS = [
       return { html: `<div class="status">${rows.length} row${rows.length === 1 ? '' : 's'}</div>`, nodes };
     } },
   { id: 'filter', group: 'sd', name: 'Filter features', what: 'Keep only the features that meet up to four conditions, optionally the top N by a field. Makes a new layer you can use in any other tool.',
-    params: [lay('Layer', ['point', 'polygon']),
+    params: [lay('Layer', ['point', 'polygon', 'line']),
       { k: 'f1', label: 'Condition 1: field', type: 'field', of: 'layer', optional: false },
       { k: 'o1', label: '… is', type: 'select', options: [['eq', 'is / ='], ['ne', 'is not / ≠'], ['lt', '<'], ['le', '≤'], ['gt', '>'], ['ge', '≥']], show: p => !!p.f1 },
       { k: 'c1', label: '… value', type: 'select', options: (ctx, p) => uniq(ctx, p, p.f1), show: (p, ctx) => !!p.f1 && !isNum(ctx, p, p.f1) },
@@ -417,9 +417,9 @@ export const BLOCKS = [
     } },
   // ------------------------------------------------------------ EXPLAIN
   { id: 'distto', group: 'reg', name: 'Distance to nearest', what: 'Add a field: distance from each feature to the nearest feature of another layer, or to a point.',
-    params: [lay('Add field to', ['point', 'polygon'], { prefer: ['_h3', 'hdb'] }), { k: 'to', label: 'Distance to', type: 'select', options: [['layer', 'nearest feature of a layer'], ['point', 'a fixed point']] }, lay('Layer', ['point', 'polygon'], { k: 'tolayer', show: p => p.to === 'layer', prefer: ['LATEST'] }), { k: 'point', label: 'Point', type: 'point', show: p => p.to === 'point' }, { k: 'copy', label: 'Also copy from nearest', type: 'field', of: 'tolayer', optional: true, show: p => p.to === 'layer' }, { k: 'name', label: 'Field name', type: 'select', options: ['metro', 'mrt', 'hawker', 'cbd', 'cyberhub', 'school', 'park', 'poi', 'cafe_cluster', 'food_market', 'rival', 'nearest'] }],
+    params: [lay('Add field to', ['point', 'polygon'], { prefer: ['_h3', 'hdb'] }), { k: 'to', label: 'Distance to', type: 'select', options: [['layer', 'nearest feature of a layer'], ['point', 'a fixed point']] }, lay('Layer', ['point', 'polygon'], { k: 'tolayer', show: p => p.to === 'layer', prefer: ['LATEST'] }), { k: 'point', label: 'Point', type: 'point', show: p => p.to === 'point' }, { k: 'copy', label: 'Also copy from nearest', type: 'field', of: 'tolayer', optional: true, show: p => p.to === 'layer' }, { k: 'name', label: 'Field name (e.g. metro)', type: 'str', def: 'metro' }],
     async run(p, ctx) {
-      const L = getL(ctx, p.layer), field = `dist_${p.name}_km`, A = ctx.xyKm(L); let d;
+      const L = getL(ctx, p.layer), field = `dist_${String(p.name || 'nearest').trim().replace(/\W+/g, '_')}_km`, A = ctx.xyKm(L); let d;
       if (p.to === 'point') { const [lon, lat] = pointLL(p, ctx); d = ctx.lonlat(L).map(([x, y]) => ctx.S.haversine(lat, lon, y, x)); }
       else { const T = getL(ctx, p.tolayer); if (T === L) throw new Error('Pick a different layer to measure to.'); const B = ctx.xyKm(T), g = new ctx.S.GridIndex(B); const nn = A.map(([x, y]) => g.knn(x, y, 1)[0]); d = nn.map(e => e[1]); if (p.copy) { const cf = p.copy + '_nearest'; let same = 0; L.fc.features.forEach((f, i) => { f.properties[cf] = T.fc.features[nn[i][0]].properties[p.copy]; if (String(f.properties[cf]) === String(f.properties[p.copy])) same++; }); p._match = p.copy in L.fc.features[0].properties ? [same, L.fc.features.length, cf] : [null, 0, cf]; } }
       L.fc.features.forEach((f, i) => f.properties[field] = +d[i].toFixed(3)); ctx.restyle(L, { mode: 'seq', field });
