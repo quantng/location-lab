@@ -298,7 +298,7 @@ export const BLOCKS = [
 
   // ------------------------------------------------------------ EXPLAIN
   { id: 'distto', group: 'reg', name: 'Distance to nearest', what: 'Add a field: distance from each feature to the nearest feature of another layer, or to a point.',
-    params: [lay('Add field to', ['point', 'polygon'], { prefer: ['_h3', 'hdb'] }), { k: 'to', label: 'Distance to', type: 'select', options: [['layer', 'nearest feature of a layer'], ['point', 'a fixed point']] }, lay('Layer', ['point', 'polygon'], { k: 'tolayer', show: p => p.to === 'layer', prefer: ['LATEST'] }), { k: 'point', label: 'Point', type: 'point', show: p => p.to === 'point' }, { k: 'name', label: 'Field name', type: 'select', options: ['metro', 'mrt', 'hawker', 'cbd', 'cyberhub', 'school', 'park', 'poi'] }],
+    params: [lay('Add field to', ['point', 'polygon'], { prefer: ['_h3', 'hdb'] }), { k: 'to', label: 'Distance to', type: 'select', options: [['layer', 'nearest feature of a layer'], ['point', 'a fixed point']] }, lay('Layer', ['point', 'polygon'], { k: 'tolayer', show: p => p.to === 'layer', prefer: ['LATEST'] }), { k: 'point', label: 'Point', type: 'point', show: p => p.to === 'point' }, { k: 'name', label: 'Field name', type: 'select', options: ['metro', 'mrt', 'hawker', 'cbd', 'cyberhub', 'school', 'park', 'poi', 'cafe_cluster', 'food_market', 'rival'] }],
     async run(p, ctx) {
       const L = getL(ctx, p.layer), field = `dist_${p.name}_km`, A = ctx.xyKm(L); let d;
       if (p.to === 'point') { const [lon, lat] = pointLL(p, ctx); d = ctx.lonlat(L).map(([x, y]) => ctx.S.haversine(lat, lon, y, x)); }
