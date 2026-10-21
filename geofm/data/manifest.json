@@ -1,0 +1,79 @@
+{
+ "areas": {
+  "gurgaon_ssdmi_aoi": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ]
+  },
+  "jaipur_ssdmi_aoi": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ]
+  },
+  "gurugram_city_osm": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ],
+   "tessera_v11": [
+    2021,
+    2024
+   ]
+  },
+  "mumbai_mmr_core_osm": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ],
+   "tessera_v11": [
+    2021,
+    2024
+   ]
+  },
+  "songadh_taluka_osm": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ]
+  },
+  "london_boroughs": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ],
+   "tessera_v11": [
+    2021,
+    2024
+   ]
+  },
+  "dubai_emirate_osm": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ]
+  },
+  "zurich_canton_osm": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ],
+   "tessera_v11": [
+    2021,
+    2024
+   ]
+  },
+  "probe_cocoa_ci_bas_sassandra": {
+   "alphaearth_v1": [
+    2020,
+    2024
+   ],
+   "tessera_v11": [
+    2021,
+    2024
+   ]
+  }
+ },
+ "products": {}
+}

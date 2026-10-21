@@ -1,0 +1,26 @@
+.sub-brand{font-weight:400;color:var(--muted,#666);margin-left:6px}
+.gf{padding:12px 18px;max-width:1500px;margin:0 auto;font-family:inherit}
+.gf-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.gf-tabs button{font:inherit;padding:7px 14px;border:1px solid var(--line,#ddd);background:var(--surface,#fff);border-radius:8px;cursor:pointer;font-weight:600}
+.gf-tabs button[aria-selected="true"]{background:#4a3f8f;color:#fff;border-color:#4a3f8f}
+.gf-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}.gf-row.small label{font-size:12px}
+.gf-row label{display:flex;flex-direction:column;font-size:13px;color:var(--muted,#555);gap:3px}
+.gf-row select,.gf-row input[type=number]{font:inherit;padding:5px 7px;min-width:160px;max-width:460px}
+.gf-note{background:var(--surface,#f6f6f6);border-left:4px solid #4a3f8f;padding:8px 12px;font-size:13px;margin:8px 0 12px;line-height:1.45}
+.gf-live{display:grid;grid-template-columns:1fr 440px;gap:12px}
+@media(max-width:1000px){.gf-live{grid-template-columns:1fr}}
+.gf-map{height:600px;border:1px solid var(--line,#ddd);border-radius:8px}
+.gf-side{display:flex;flex-direction:column;gap:8px}
+.gf-status{font-size:13px;line-height:1.45;background:var(--surface,#f6f6f6);padding:8px 10px;border-radius:6px;white-space:pre-wrap}
+.gf-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.gf-card{border:1px solid var(--line,#ddd);padding:12px;border-radius:8px;background:var(--surface,#fff)}.gf-card h3{margin:0 0 6px;font-size:15px}
+.gf-metric{display:flex;justify-content:space-between;gap:8px;border-top:1px dotted var(--line,#ddd);padding:5px 0;font-size:13px}.gf-metric b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.gf-ci{color:var(--muted,#666);font-size:12px}
+table.gf-t{border-collapse:collapse;font-size:12.5px;width:100%}.gf-t th,.gf-t td{border:1px solid var(--line,#ddd);padding:4px 6px;text-align:left;vertical-align:top}.gf-t th{background:var(--surface,#f3f3f3)}
+.gf-t td.num{text-align:center;font-variant-numeric:tabular-nums}
+.gf-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}.gf-imgs img{width:100%;border:1px solid var(--line,#ddd);border-radius:6px}.gf-imgs figcaption{font-size:12px;color:var(--muted,#666)}
+.gf-prose{max-width:900px;line-height:1.55;font-size:15px}
+.gf-key{font-size:12px;color:var(--muted,#666);margin:6px 0 12px}
+#lv-sig,#ex-chart{width:100%;border:1px solid var(--line,#ddd);border-radius:6px;background:#fff}
+.maplibregl-canvas{cursor:crosshair}
+.gf-row button{flex:0 0 auto;width:auto}

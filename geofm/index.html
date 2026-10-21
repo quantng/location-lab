@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoFM Embedding Lab</title>
+<link rel="stylesheet" href="../lib/maplibre-gl.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="geofm.css">
+<script src="../lib/maplibre-gl.js"></script>
+<script src="../lib/geotiff.js"></script>
+<script src="../lib/h3-js.umd.js"></script>
+<script src="lib/fzstd.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><b>Location Lab</b> <span class="sub-brand">· GeoFM Embedding Lab</span></div>
+  <span class="spacer"></span>
+  <a class="ghost" href="../" rel="noopener">← Workbench</a>
+  <a class="ghost" href="https://github.com/quantng/location-lab" target="_blank" rel="noopener">GitHub</a>
+</header>
+<main class="gf">
+  <nav class="gf-tabs" role="tablist">
+    <button role="tab" data-t="eval" aria-selected="true">1 · Evaluator</button>
+    <button role="tab" data-t="live" aria-selected="false">2 · Live embeddings</button>
+    <button role="tab" data-t="exp" aria-selected="false">3 · Experiment</button>
+    <button role="tab" data-t="about" aria-selected="false">About</button>
+  </nav>
+
+  <!-- 1 EVALUATOR -->
+  <section id="t-eval" class="gf-pane">
+    <div class="gf-row">
+      <label>Area <select id="ev-aoi"></select></label>
+      <label>View <select id="ev-view">
+        <option value="task">Task: power and fit</option><option value="ask">Ask a question</option><option value="inv">Coverage inventory</option>
+        <option value="maps">Embeddings on the map</option><option value="card">Measured power card</option><option value="fit">Fit matrix (literature)</option><option value="bench">Existing benchmarks</option></select></label>
+      <label id="ev-qwrap">Question <select id="ev-q"></select></label>
+      <label id="ev-twrap">Task <select id="ev-task"></select></label>
+    </div>
+    <div class="gf-note" id="ev-exp"></div>
+    <div id="ev-body"></div>
+  </section>
+
+  <!-- 2 LIVE -->
+  <section id="t-live" class="gf-pane" hidden>
+    <div class="gf-row">
+      <label>Year A <select id="lv-ya"></select></label>
+      <label>Year B <select id="lv-yb"></select></label>
+      <label>Read resolution <select id="lv-res"><option value="80">80 m (fast)</option><option value="40" selected>40 m</option><option value="20">20 m (slow)</option></select></label>
+      <button id="lv-draw" class="primary">Draw a box on the map</button>
+      <button id="lv-run" class="ghost" disabled>Read embeddings</button>
+      <button id="lv-clear" class="ghost">Clear</button>
+    </div>
+    <div class="gf-note">Draw a box (up to about 15 × 15 km). The page range-reads the AlphaEarth Foundations tiles for both years straight from the open Source Cooperative mirror, dequantises the 64 int8 bands, and computes on your laptop: principal components 1–3 as colour for year B, and 1 − cosine between A and B as a change map. Click any pixel afterwards to see its 64-number signature in both years. Nothing is uploaded anywhere.</div>
+    <div class="gf-live">
+      <div id="lv-map" class="gf-map"></div>
+      <div class="gf-side">
+        <div id="lv-status" class="gf-status">Ready.</div>
+        <div class="gf-row small"><label>Show <select id="lv-layer"><option value="pca">Principal components (year B)</option><option value="chg">Change A → B (1 − cosine)</option><option value="pcaA">Principal components (year A)</option></select></label>
+        <label>Opacity <input id="lv-op" type="range" min="0" max="1" step="0.05" value="0.85"></label></div>
+        <canvas id="lv-sig" width="420" height="160"></canvas>
+        <div id="lv-pixel" class="gf-status">Click a pixel on the overlay to see its signature.</div>
+        <div id="lv-stats" class="gf-status"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 EXPERIMENT -->
+  <section id="t-exp" class="gf-pane" hidden>
+    <div class="gf-row">
+      <label>Area <select id="ex-aoi"></select></label>
+      <label>Product <select id="ex-prod"></select></label>
+      <label>Year <select id="ex-year"></select></label>
+      <label>Target <select id="ex-target">
+        <option value="ghsl_built_frac_2020">GHSL built-up fraction 2020</option><option value="wc2021_frac_built">WorldCover built-up fraction 2021</option>
+        <option value="wc2021_frac_crop">WorldCover cropland fraction 2021</option><option value="wc2021_frac_tree">WorldCover tree-cover fraction 2021</option>
+        <option value="ghsl_built_change_2020_2025">GHSL built-up change 2020–2025</option><option value="upload">My own labels (CSV upload)</option></select></label>
+      <label>Ridge alpha <input id="ex-alpha" type="number" value="10" min="0.01" step="1" style="width:70px"></label>
+      <button id="ex-run" class="primary">Run the probe</button>
+    </div>
+    <div class="gf-row small" id="ex-upwrap" hidden>
+      <label>CSV with columns h3,value or lat,lon,value <input id="ex-file" type="file" accept=".csv"></label>
+      <span class="gf-status" id="ex-upinfo"></span>
+    </div>
+    <div class="gf-note">Bring your own question. The page fits a ridge probe from the H3-pooled embedding to the target with five spatially blocked folds (blocks = H3 parent four levels up), repeats it with random folds, and reports the blocked R², the leakage gap (random minus blocked), the dimensions carrying the signal, and a fitness verdict — the same battery as the evaluation, run live in your browser.</div>
+    <div class="gf-live">
+      <div id="ex-map" class="gf-map"></div>
+      <div class="gf-side"><div id="ex-out" class="gf-status">Choose an area and press Run.</div><canvas id="ex-chart" width="420" height="220"></canvas><div id="ex-dims"></div></div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="t-about" class="gf-pane" hidden>
+    <div class="gf-prose">
+      <h2>What this is</h2>
+      <p>A practitioner's yardstick for geospatial foundation-model (GeoFM) embedding products: does a product cover my area and years, does near mean near, can it predict what the ground looks like now, does the vector's movement mean real change, does a probe trained in one city hold in another, and what does it cost to use. The evaluator shows what was measured for nine areas (Gurgaon, Jaipur, Gurugram, Mumbai, Songadh; London, Dubai, Zürich, a cocoa producer region) across 2017–2025; the live tab reads AlphaEarth tiles from the open bucket for any box you draw; the experiment tab lets you fit and audit your own probe.</p>
+      <h2>Products</h2>
+      <p>Google AlphaEarth Foundations V1 (10 m, 64-d, annual 2017–2025, CC-BY 4.0, open on Google Cloud Storage and the Source Cooperative mirror), TESSERA v1.1 (10 m, 128-d, CC-BY-SA, AWS Open Data), Major TOM embeddings (10 km cells, Hugging Face), Clay v1.5 / LGND, Earth Index v7 and Copernicus-Embed (inventoried). Labels: ESA WorldCover 2020/2021, JRC GHSL built-up surface. Imagery: Sentinel-2 L2A and Sentinel-1.</p>
+      <h2>Method</h2>
+      <p>Embeddings are pooled to H3 resolution 8 (resolution 9 for the two SSDMI areas). Regressions are ridge probes on standardised dimensions with five spatially blocked folds and block-bootstrap intervals; random splits appear only in the leakage audit. Explainability is visual (principal components as colour on fixed axes, displacement maps, UMAP drift, dimension-versus-imagery heat maps) and non-visual (probe coefficients, permutation importance, concept alignment, prototypes and counterfactuals).</p>
+      <p>Spatial Data Lab for Business, MDI Gurgaon · built October 2026 with AI assistance (Claude). Dequantisation follows the AlphaEarth documentation: value = sign(v)·(|v|/127.5)², −128 = no data; vectors are unit length.</p>
+    </div>
+  </section>
+</main>
+<script type="module" src="js/geofm.js"></script>
+</body>
+</html>
