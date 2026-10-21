@@ -9,6 +9,27 @@ const NAMES = { gurgaon_ssdmi_aoi: 'Gurgaon speculative-construction area (India
 const PRODN = { alphaearth_v1: 'AlphaEarth Foundations V1', tessera_v11: 'TESSERA v1.1', majortom_dinov2: 'Major TOM DINOv2', majortom_siglip: 'Major TOM SigLIP', majortom_alphaearth: 'Major TOM AlphaEarth cells', clay_lgnd_v15: 'Clay v1.5 / LGND', earthindex_v7: 'Earth Index v7', copernicus_embed: 'Copernicus-Embed' };
 const CENTRE = { gurgaon_ssdmi_aoi: [76.9, 28.41], jaipur_ssdmi_aoi: [75.76, 26.89], gurugram_city_osm: [77.03, 28.45], mumbai_mmr_core_osm: [72.95, 19.2], songadh_taluka_osm: [73.6, 21.2], london_boroughs: [-0.1, 51.5], dubai_emirate_osm: [55.3, 25.1], zurich_canton_osm: [8.6, 47.4], probe_cocoa_ci_bas_sassandra: [-6.6, 5.35] };
 let D = null, MAN = null, AOIS = [];
+const GLOSS = {
+  'coverage': 'Share of H3 cells in the area with a valid vector that year.',
+  'imagery agreement': 'Blocked R² of a ridge probe from the embedding to a Sentinel-2 index (NDVI, NDBI, brightness). How much of the optical signal the vector keeps.',
+  'temporal stability': 'Median cosine between consecutive years on cells with under 2 pp of GHSL built-up change. 1 = identical.',
+  'distance decay': 'Mean cosine similarity by H3 ring distance; how fast similarity falls with distance.',
+  'retrieval': 'precision@10: share of the ten nearest cosine neighbours that share the WorldCover 2021 majority class. Lift = precision divided by chance.',
+  'neighbourhood coherence': "Moran's I of PC1: spatial autocorrelation of the embedding.",
+  'downstream prediction': 'Blocked R² of a ridge probe predicting a label (GHSL built-up, WorldCover class fractions). Five spatial blocks, block-bootstrap interval.',
+  'observed change': 'Spearman and AUC of embedding displacement (1 − cosine) against GHSL built-up change 2015–2020.',
+  'forward change': 'R² and AUC predicting GHSL built-up change 2020–2025 from the 2020 vector.',
+  'spatial transfer': 'Probe trained in one area, scored in another. Gap = in-region R² minus out-of-region R².',
+  'leakage audit': 'Random-split R² minus blocked R². Positive = random splits flatter the product.',
+  'effective rank': 'exp(entropy of normalised eigenvalues): how many dimensions carry variance.',
+  'isotropy': 'Mean cosine between random pairs of vectors; near 0 = well spread.',
+  'Fit (literature, 0–3)': '0 = not applicable, 3 = designed for it; rated from resolution vs object size, cadence, coverage, pixel vs patch, licence, cost.',
+  'Pull MB / min': 'Estimated bytes and minutes to pull the product for this area at 25 MB/s.',
+  'Product': 'Embedding product; hover a row for its documentation summary.'
+};
+const PRODTIP = { alphaearth_v1: 'Google AlphaEarth Foundations V1: 10 m, 64 dimensions, int8, unit length, annual 2017–2025, CC-BY 4.0. Dequantise sign(v)·(|v|/127.5)².', tessera_v11: 'TESSERA v1.1 (Cambridge): 10 m, 128 dimensions, Matryoshka, uint8 grids with per-tile scales, CC-BY-SA, AWS Open Data.', majortom_dinov2: 'Major TOM DINOv2 embeddings: 1,024-d on 10 km cells, single Sentinel-2 acquisition.', majortom_siglip: 'Major TOM SigLIP embeddings: 1,152-d on 10 km cells, single acquisition.', majortom_alphaearth: 'Major TOM re-cut of AlphaEarth into 10 km cells.', clay_lgnd_v15: 'Clay v1.5 / LGND: 256-d monthly on a 1.28 km hive grid (GeoParquet on Source Cooperative).', earthindex_v7: 'Earth Index v7 (Earth Genome): per-MGRS GeoParquet, 2024 and 2025–26.', copernicus_embed: 'Copernicus-Embed: 0.25° cells, 2021, multimodal.' };
+function applyTips(root) { root.querySelectorAll('th, td, h3, span').forEach(n => { if (n.title) return; const t = n.textContent.trim(); for (const k in GLOSS) if (t === k || t.startsWith(k) || t.includes(k)) { n.title = GLOSS[k]; return; } for (const p in PRODN) if (t === PRODN[p]) { n.title = PRODTIP[p] || ''; return; } }); }
+
 
 async function readParquet(url) { const buf = await (await fetch(url, { cache: 'force-cache' })).arrayBuffer(); const file = { byteLength: buf.byteLength, slice: (a, b) => buf.slice(a, b) }; return parquetReadObjects({ file }); } // whole-file fetch: GitHub Pages gzips parquet, which breaks range reads
 
@@ -81,6 +102,7 @@ function evRender() {
   } else if (view === 'bench') {
     const cols = Object.keys(D.benchmarks[0]); const t = el('table', { class: 'gf-t' }); t.append(el('tr', {}, ...cols.map(c => el('th', {}, c.replace(/_/g, ' '))))); D.benchmarks.forEach(r => t.append(el('tr', {}, ...cols.map(c => el('td', {}, r[c] == null ? '' : String(r[c])))))); body.append(t);
   }
+  applyTips(body);
 }
 
 // ------------------------------------------------------------------ maths helpers

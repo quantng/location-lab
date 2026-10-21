@@ -24,3 +24,4 @@ table.gf-t{border-collapse:collapse;font-size:12.5px;width:100%}.gf-t th,.gf-t t
 #lv-sig,#ex-chart{width:100%;border:1px solid var(--line,#ddd);border-radius:6px;background:#fff}
 .maplibregl-canvas{cursor:crosshair}
 .gf-row button{flex:0 0 auto;width:auto}
+[title]{cursor:help}

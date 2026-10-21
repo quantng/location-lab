@@ -30,12 +30,12 @@
   <!-- 1 EVALUATOR -->
   <section id="t-eval" class="gf-pane">
     <div class="gf-row">
-      <label>Area <select id="ev-aoi"></select></label>
-      <label>View <select id="ev-view">
+      <label title="Hover any control or table header for an explanation">Area <select id="ev-aoi" title="Evaluated area. India: Gurgaon and Jaipur speculative-construction areas, Gurugram, Mumbai, Songadh. Global: London, Dubai, Zürich, cocoa probe."></select></label>
+      <label>View <select id="ev-view" title="Task: literature fit beside measured power. Ask: one question, every product. Inventory: what exists where. Maps: embeddings beside imagery. Card: the measured battery. Fit matrix and benchmarks: the literature review.">
         <option value="task">Task: power and fit</option><option value="ask">Ask a question</option><option value="inv">Coverage inventory</option>
         <option value="maps">Embeddings on the map</option><option value="card">Measured power card</option><option value="fit">Fit matrix (literature)</option><option value="bench">Existing benchmarks</option></select></label>
-      <label id="ev-qwrap">Question <select id="ev-q"></select></label>
-      <label id="ev-twrap">Task <select id="ev-task"></select></label>
+      <label id="ev-qwrap">Question <select id="ev-q" title="Each question maps to one layer of the charter: Represent, Relate, Reason, Transfer."></select></label>
+      <label id="ev-twrap">Task <select id="ev-task" title="Eleven practitioner task families. Fit is rated from resolution, cadence, coverage, pixel-vs-patch design, licence and cost; power is what was measured."></select></label>
     </div>
     <div class="gf-note" id="ev-exp"></div>
     <div id="ev-body"></div>
@@ -44,20 +44,20 @@
   <!-- 2 LIVE -->
   <section id="t-live" class="gf-pane" hidden>
     <div class="gf-row">
-      <label>Year A <select id="lv-ya"></select></label>
-      <label>Year B <select id="lv-yb"></select></label>
-      <label>Read resolution <select id="lv-res"><option value="80">80 m (fast)</option><option value="40" selected>40 m</option><option value="20">20 m (slow)</option></select></label>
-      <button id="lv-draw" class="primary">Draw a box on the map</button>
-      <button id="lv-run" class="ghost" disabled>Read embeddings</button>
-      <button id="lv-clear" class="ghost">Clear</button>
+      <label>Year A <select id="lv-ya" title="First year of the pair (2017–2025). The change map is 1 − cosine between the two years."></select></label>
+      <label>Year B <select id="lv-yb" title="Second year; principal components are fitted on this year."></select></label>
+      <label>Read resolution <select id="lv-res" title="Which overview level of the cloud-optimised tile is read. 80 m is a few seconds; 20 m reads 16× more pixels."><option value="80">80 m (fast)</option><option value="40" selected>40 m</option><option value="20">20 m (slow)</option></select></label>
+      <button id="lv-draw" title="Click two opposite corners on the map. Keep the box under about 15 km on a side." class="primary">Draw a box on the map</button>
+      <button id="lv-run" title="Range-reads both years from the open Source Cooperative mirror; nothing is uploaded." class="ghost" disabled>Read embeddings</button>
+      <button id="lv-clear" title="Remove the box and the overlay." class="ghost">Clear</button>
     </div>
     <div class="gf-note">Draw a box (up to about 15 × 15 km). The page range-reads the AlphaEarth Foundations tiles for both years straight from the open Source Cooperative mirror, dequantises the 64 int8 bands, and computes on your laptop: principal components 1–3 as colour for year B, and 1 − cosine between A and B as a change map. Click any pixel afterwards to see its 64-number signature in both years. Nothing is uploaded anywhere.</div>
     <div class="gf-live">
       <div id="lv-map" class="gf-map"></div>
       <div class="gf-side">
         <div id="lv-status" class="gf-status">Ready.</div>
-        <div class="gf-row small"><label>Show <select id="lv-layer"><option value="pca">Principal components (year B)</option><option value="chg">Change A → B (1 − cosine)</option><option value="pcaA">Principal components (year A)</option></select></label>
-        <label>Opacity <input id="lv-op" type="range" min="0" max="1" step="0.05" value="0.85"></label></div>
+        <div class="gf-row small"><label>Show <select id="lv-layer" title="Principal components: 64 dimensions reduced to 3 and shown as red, green, blue. Change: 1 − cosine between the two years, dark = larger change."><option value="pca">Principal components (year B)</option><option value="chg">Change A → B (1 − cosine)</option><option value="pcaA">Principal components (year A)</option></select></label>
+        <label>Opacity <input id="lv-op" title="Overlay opacity." type="range" min="0" max="1" step="0.05" value="0.85"></label></div>
         <canvas id="lv-sig" width="420" height="160"></canvas>
         <div id="lv-pixel" class="gf-status">Click a pixel on the overlay to see its signature.</div>
         <div id="lv-stats" class="gf-status"></div>
@@ -68,18 +68,18 @@
   <!-- 3 EXPERIMENT -->
   <section id="t-exp" class="gf-pane" hidden>
     <div class="gf-row">
-      <label>Area <select id="ex-aoi"></select></label>
-      <label>Product <select id="ex-prod"></select></label>
-      <label>Year <select id="ex-year"></select></label>
-      <label>Target <select id="ex-target">
+      <label>Area <select id="ex-aoi" title="Area whose pooled embeddings and labels are bundled with the page."></select></label>
+      <label>Product <select id="ex-prod" title="Products with bundled cells for this area."></select></label>
+      <label>Year <select id="ex-year" title="Year of the embedding used as the predictor."></select></label>
+      <label>Target <select id="ex-target" title="What the probe predicts. GHSL = JRC built-up surface fraction; WorldCover = ESA 2021 class fractions; upload = your own values per H3 cell or per lat/lon point.">
         <option value="ghsl_built_frac_2020">GHSL built-up fraction 2020</option><option value="wc2021_frac_built">WorldCover built-up fraction 2021</option>
         <option value="wc2021_frac_crop">WorldCover cropland fraction 2021</option><option value="wc2021_frac_tree">WorldCover tree-cover fraction 2021</option>
         <option value="ghsl_built_change_2020_2025">GHSL built-up change 2020–2025</option><option value="upload">My own labels (CSV upload)</option></select></label>
-      <label>Ridge alpha <input id="ex-alpha" type="number" value="10" min="0.01" step="1" style="width:70px"></label>
-      <button id="ex-run" class="primary">Run the probe</button>
+      <label>Ridge alpha <input id="ex-alpha" title="Ridge penalty on standardised dimensions. Larger = smoother, more conservative probe." type="number" value="10" min="0.01" step="1" style="width:70px"></label>
+      <button id="ex-run" title="Fits five spatially blocked folds, then five random folds, and reports both." class="primary">Run the probe</button>
     </div>
     <div class="gf-row small" id="ex-upwrap" hidden>
-      <label>CSV with columns h3,value or lat,lon,value <input id="ex-file" type="file" accept=".csv"></label>
+      <label>CSV with columns h3,value or lat,lon,value <input id="ex-file" title="Columns h3,value or lat,lon,value. Points are assigned to the H3 cell of the chosen area." type="file" accept=".csv"></label>
       <span class="gf-status" id="ex-upinfo"></span>
     </div>
     <div class="gf-note">Bring your own question. The page fits a ridge probe from the H3-pooled embedding to the target with five spatially blocked folds (blocks = H3 parent four levels up), repeats it with random folds, and reports the blocked R², the leakage gap (random minus blocked), the dimensions carrying the signal, and a fitness verdict — the same battery as the evaluation, run live in your browser.</div>
