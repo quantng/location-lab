@@ -25,3 +25,5 @@ table.gf-t{border-collapse:collapse;font-size:12.5px;width:100%}.gf-t th,.gf-t t
 .maplibregl-canvas{cursor:crosshair}
 .gf-row button{flex:0 0 auto;width:auto}
 [title]{cursor:help}
+.gf-raw{display:flex;flex-direction:column;gap:4px;font-size:12px;background:var(--surface,#f6f6f6);padding:8px 10px;border-radius:6px}.gf-raw label{display:flex;align-items:center;gap:8px}.gf-raw input[type=range]{flex:1}.gf-raw b{min-width:110px;font-weight:600}
+.gf-legend{font-size:12px;line-height:1.45}
