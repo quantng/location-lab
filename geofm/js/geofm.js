@@ -1,5 +1,5 @@
 // GeoFM Embedding Lab — evaluator (1), live embeddings (2), experiment (3). Runs fully in the browser.
-import { parquetReadObjects, asyncBufferFromUrl } from '../../lib/hyparquet/index.js';
+import { parquetReadObjects } from '../../lib/hyparquet/index.js';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...c) => { const e = document.createElement(t); for (const k in a) { if (k === 'html') e.innerHTML = a[k]; else e.setAttribute(k, a[k]); } c.forEach(x => e.append(x)); return e; };
 const fmt = v => v == null || Number.isNaN(v) ? '–' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(3));
@@ -10,7 +10,7 @@ const PRODN = { alphaearth_v1: 'AlphaEarth Foundations V1', tessera_v11: 'TESSER
 const CENTRE = { gurgaon_ssdmi_aoi: [76.9, 28.41], jaipur_ssdmi_aoi: [75.76, 26.89], gurugram_city_osm: [77.03, 28.45], mumbai_mmr_core_osm: [72.95, 19.2], songadh_taluka_osm: [73.6, 21.2], london_boroughs: [-0.1, 51.5], dubai_emirate_osm: [55.3, 25.1], zurich_canton_osm: [8.6, 47.4], probe_cocoa_ci_bas_sassandra: [-6.6, 5.35] };
 let D = null, MAN = null, AOIS = [];
 
-async function readParquet(url) { const file = await asyncBufferFromUrl({ url }); return parquetReadObjects({ file }); }
+async function readParquet(url) { const buf = await (await fetch(url, { cache: 'force-cache' })).arrayBuffer(); const file = { byteLength: buf.byteLength, slice: (a, b) => buf.slice(a, b) }; return parquetReadObjects({ file }); } // whole-file fetch: GitHub Pages gzips parquet, which breaks range reads
 
 // ------------------------------------------------------------------ tabs
 document.querySelectorAll('.gf-tabs button').forEach(b => b.onclick = () => {
