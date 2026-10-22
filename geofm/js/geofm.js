@@ -218,9 +218,22 @@ function initExp() {
   exMap = new maplibregl.Map({ container: 'ex-map', style: BASE, center: [76.9, 28.41], zoom: 10, attributionControl: { compact: true } }); exMap.addControl(new maplibregl.NavigationControl(), 'top-right');
   fill($('#ex-aoi'), AOIS, a => NAMES[a] || a); exProducts(); $('#ex-aoi').onchange = () => { exProducts(); const c = CENTRE[$('#ex-aoi').value]; if (c) exMap.flyTo({ center: c, zoom: 10 }); }; $('#ex-prod').onchange = exYears; $('#ex-target').onchange = () => { $('#ex-upwrap').hidden = $('#ex-target').value !== 'upload'; };
   $('#ex-file').onchange = async e => { const f = e.target.files[0]; if (!f) return; const txt = await f.text(); const lines = txt.trim().split(/\r?\n/); const hdr = lines[0].toLowerCase().split(','); const rows = lines.slice(1).map(l => l.split(',')); exUpload = { hdr, rows }; $('#ex-upinfo').textContent = `${rows.length} rows, columns: ${hdr.join(', ')}`; };
-  $('#ex-run').onclick = runExp;
+  $('#ex-run').onclick = runExp; fill($('#ex-src'), AOIS, a => NAMES[a] || a); $('#ex-tr').onclick = gradeTransfer;
 }
 let exUpload = null;
+async function gradeTransfer() {
+  const a = $('#ex-aoi').value, src = $('#ex-src').value, p = $('#ex-prod').value, y = $('#ex-year').value; const out = $('#ex-out'); out.textContent = 'Loading both areas…';
+  try {
+    const ys = (MAN.areas[src] || {})[p] || []; if (!ys.length) { out.textContent = 'No bundled cells for the source area with this product.'; return; }
+    const ysrc = ys.includes(+y) ? y : ys[0]; const A = await readParquet(`data/emb/${a}__${p}__${y}.parquet`), B = await readParquet(`data/emb/${src}__${p}__${ysrc}.parquet`); const ec = Object.keys(A[0]).filter(k => k.startsWith('e_'));
+    const unit = rows => { const out = []; for (const r of rows) { const v = ec.map(c => +r[c]); if (Number.isNaN(v[0])) continue; const n = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1; out.push(v.map(x => x / n)); } return out; };
+    const samp = (arr, n) => { const o = []; const step = Math.max(1, Math.floor(arr.length / n)); for (let i = 0; i < arr.length && o.length < n; i += step) o.push(arr[i]); return o; };
+    const T = samp(unit(A), 1500), S = samp(unit(B), 2500); let sum = 0;
+    for (const t of T) { let best = -1; for (const s of S) { let d = 0; for (let k = 0; k < t.length; k++) d += t[k] * s[k]; if (d > best) best = d; } sum += best; }
+    const ov = sum / T.length; const grade = ov >= 0.82 ? 'works as is' : ov >= 0.64 ? 'likely — verify with a few hundred local labels' : 're-fit locally';
+    out.textContent = `Transfer grade, ${PRODN[p] || p}: model trained on ${NAMES[src] || src} (${ysrc}) applied to ${NAMES[a] || a} (${y}).\nEmbedding overlap = mean cosine of each target cell to its nearest source cell: ${ov.toFixed(3)} (${T.length} target × ${S.length} source cells).\nGrade: ${grade}.\nCalibration on 132 labelled pairs: overlap ≥ 0.82 → median out-of-region R² 0.65; 0.64–0.82 → 0.46; below 0.64 → below 0.`;
+  } catch (e) { out.textContent = 'Failed: ' + e.message; console.error(e); }
+}
 function exProducts() { const a = $('#ex-aoi').value; const prods = Object.keys(MAN.areas[a] || {}); fill($('#ex-prod'), prods, p => PRODN[p] || p); exYears(); }
 function exYears() { const a = $('#ex-aoi').value, p = $('#ex-prod').value; fill($('#ex-year'), MAN.areas[a]?.[p] || []); }
 function ridgeFit(X, y, alpha) { // X: array of Float64Array rows (standardised), returns weights and intercept

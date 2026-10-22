@@ -86,6 +86,8 @@
         <option value="ghsl_built_change_2020_2025">GHSL built-up change 2020–2025</option><option value="upload">My own labels (CSV upload)</option></select></label>
       <label>Ridge alpha <input id="ex-alpha" title="Ridge penalty on standardised dimensions. Larger = smoother, more conservative probe." type="number" value="10" min="0.01" step="1" style="width:70px"></label>
       <button id="ex-run" title="Fits five spatially blocked folds, then five random folds, and reports both." class="primary">Run the probe</button>
+      <label title="Transfer grade: mean cosine of each cell of the chosen area to its nearest cell in the source area, from the vectors alone. ≥ 0.82 works as is; 0.64–0.82 likely, verify with a few labels; below 0.64 re-fit locally">Transfer from <select id="ex-src"></select></label>
+      <button id="ex-tr" class="ghost" title="Grade whether a model trained in the source area will work in the chosen area, using only the embeddings">Grade transfer</button>
     </div>
     <div class="gf-row small" id="ex-upwrap" hidden>
       <label>CSV with columns h3,value or lat,lon,value <input id="ex-file" title="Columns h3,value or lat,lon,value. Points are assigned to the H3 cell of the chosen area." type="file" accept=".csv"></label>
