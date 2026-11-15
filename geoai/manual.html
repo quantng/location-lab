@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoAI Studio · Manual · Location Lab</title>
+<style>
+body{font:17px/1.6 "Segoe UI",Calibri,Arial,sans-serif;color:#14213d;max-width:980px;margin:0 auto;padding:28px 22px 60px;background:#fff}
+h1{color:#1e3063;font-size:32px;margin:0 0 4px}
+h2{color:#1e3063;font-size:24px;margin:36px 0 8px;border-top:2px solid #e1e4e9;padding-top:22px}
+h3{color:#c00000;font-size:18px;margin:20px 0 6px}
+.sub{color:#4a5568;margin:0 0 18px}
+img{width:100%;border:1px solid #cfd5df;border-radius:8px;margin:10px 0 4px}
+.cap{font-size:14px;color:#4a5568;margin:0 0 12px}
+ol li,ul li{margin:4px 0}
+.box{background:#eef3fb;border:1px solid #c6d5ee;border-radius:10px;padding:12px 16px;margin:14px 0}
+.key{background:#fdede6;border:1px solid #e8a68a;border-radius:10px;padding:12px 16px;margin:14px 0}
+code{background:#f3f5f9;padding:1px 5px;border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:15.5px}td,th{border:1px solid #d9dee7;padding:6px 8px;text-align:left}th{background:#1e3063;color:#fff}
+a{color:#1e3063}
+@media print{body{max-width:none;padding:0 6mm}h2{break-before:page}img{max-height:118mm;object-fit:contain}}
+</style>
+</head>
+<body>
+<h1>GeoAI Studio: a manual</h1>
+<p class="sub">Location Lab · LMgB Session 12, GeoAI: concepts and applications · <a href="./">Open GeoAI Studio</a></p>
+
+<div class="box"><b>What this is.</b> GeoAI Studio is a separate tab of Location Lab. It shows five GeoAI techniques on real data for Gurugram district, with no code. Everything runs in your browser; nothing is uploaded. Open it from the Location Lab header (<b>GeoAI</b>) or go straight to <code>quantng.github.io/location-lab/geoai/</code>. Use a laptop with Chrome or Edge.</div>
+
+<h2>0 · The idea in one paragraph</h2>
+<p>The district is split into 1,646 hexagons of about 0.74 km² each (Uber's H3 grid, resolution 8). For every hexagon we have a <b>fingerprint</b>: 64 numbers that Google DeepMind's AlphaEarth Foundations model learned from a whole year of satellite data (optical, radar, elevation, climate). Places that look alike from space have similar fingerprints. We compare two fingerprints with <b>cosine similarity</b>: 1 means identical, lower means more different. The five tabs use these fingerprints to find, label, monitor, test and decide.</p>
+<table><tr><th>Tab</th><th>Business question</th><th>Technique</th></tr>
+<tr><td>1 Look-alike places</td><td>Where else looks like my best location?</td><td>Similarity search on embeddings</td></tr>
+<tr><td>2 Teach the map</td><td>Can I map my own categories from a few examples?</td><td>Few-shot "prototype" classifier</td></tr>
+<tr><td>3 What changed</td><td>Where is new construction happening?</td><td>Change detection between years</td></tr>
+<tr><td>4 Honest test</td><td>Will this model work in a new town?</td><td>Random vs spatial block cross-validation</td></tr>
+<tr><td>5 White space</td><td>Where should the next outlet go?</td><td>Embedding profile of a brand</td></tr></table>
+
+<h2>1 · Look-alike places</h2>
+<ol>
+<li>Click the <b>1 Look-alike places</b> tab (it opens by default).</li>
+<li>Press a starting point (<b>Cyber City</b>, <b>MDI campus</b>, <b>Aravalli park</b>, <b>IMT Manesar</b>) or click any hexagon on the map. The seed turns red.</li>
+<li>Read the map: darker purple = more similar. The legend gives the similarity cut-off for each colour (top 1%, 1–5%, 5–10%, 10–25%).</li>
+<li>Read the panel: the ten most similar places, their similarity, and their built-up share, plus the district average for comparison.</li>
+<li>Press <b>Mumbai</b> next to "Search in" to search the same seed among 6,966 Mumbai hexagons. Red dots mark the ten best matches. Click any Gurugram hexagon (or press <b>Gurugram</b>) to come back.</li>
+</ol>
+<img src="img/d1_sim.jpg" alt="Look-alike places from the MDI campus"><p class="cap">Seed: MDI campus. The ten most similar places are dense sectors of old Gurugram.</p>
+<img src="img/d1_mum.jpg" alt="Mumbai look-alikes"><p class="cap">The same idea across cities: Mumbai places that look like the Gurugram seed.</p>
+<div class="key"><b>Read it as a manager:</b> look-alikes are a shortlist for field visits, not a decision. Similar built form does not guarantee similar customers.</div>
+
+<h2>2 · Teach the map</h2>
+<ol>
+<li>Open <b>2 Teach the map</b>. Faint colours show ESA WorldCover 2021, the "answer key" we will compare against.</li>
+<li>Choose a class: <b>Built-up</b>, <b>Farmland</b> or <b>Green / scrub</b>.</li>
+<li>Click a few hexagons that belong to that class. A coloured dot marks each example; click it again to remove it. Repeat for the other classes. (For a quick demo, press <b>Pick 5 per class for me</b>.)</li>
+<li>Press <b>Label the whole map</b>. Every hexagon gets the class whose average fingerprint is closest.</li>
+<li>Read the agreement score (share of the hexagons you did not label where the AI agrees with WorldCover), the baseline (always guessing the commonest class), and the table of agreements and disagreements.</li>
+</ol>
+<img src="img/d2_examples.jpg" alt="Examples placed"><p class="cap">Fifteen examples, five per class.</p>
+<img src="img/d2_teach.jpg" alt="Map labelled from examples"><p class="cap">The whole district labelled from fifteen examples.</p>
+<div class="key"><b>Note:</b> WorldCover is itself an AI map. Treat disagreements as places to look at, not automatically as AI errors.</div>
+
+<h2>3 · What changed</h2>
+<ol>
+<li>Open <b>3 What changed</b>.</li>
+<li><b>Any change 2020→2024</b> colours each hexagon by how much its fingerprint changed (1 − cosine). This includes crops, water and quarries.</li>
+<li><b>Turned built-up 2017→2024</b> shows the share of 40 m pixels where an AI built-up score rose sharply: a targeted view of new construction.</li>
+<li>Use <b>Go to</b> to jump to Sector 94, Sohna, Sector 69–70 or the Pataudi farms.</li>
+<li>Switch <b>Satellite</b> to <b>2020</b> and then <b>2024</b>. The hexagons turn semi-transparent so you can see the ground. Decide for yourself whether each flag is real construction or a false alarm.</li>
+<li>Click any hexagon for a pop-up with its numbers.</li>
+</ol>
+<img src="img/d3_any.jpg" alt="Any change map"><p class="cap">Any change, 2020 to 2024.</p>
+<img src="img/d3_sohna20.jpg" alt="Sohna 2020"><p class="cap">Near Sohna, satellite 2020.</p>
+<img src="img/d3_sohna24.jpg" alt="Sohna 2024"><p class="cap">Near Sohna, satellite 2024: new warehouse roofs under the flagged hexagons.</p>
+
+<h2>4 · Honest test</h2>
+<ol>
+<li>Open <b>4 Honest test</b>.</li>
+<li>Choose what to predict: <b>Built-up share</b> (WorldCover 2021) or <b>Shops &amp; eateries</b> (Overture Maps places, as log of 1 + count).</li>
+<li>Set the <b>Buffer</b> slider: how many rings of hexagons (about 0.9 km each) around each test block are also hidden from training.</li>
+<li>Press <b>Run both tests</b> (about 10–20 seconds).</li>
+<li>Compare the two models (satellite fingerprint vs copy six nearest neighbours) under the easy test (random hexagons) and the honest test (whole blocks held out). R² is the share of variation explained: 1 is perfect, 0 is no better than the average.</li>
+<li>The map shows where the satellite model makes its largest errors under the honest test.</li>
+</ol>
+<img src="img/d4_test.jpg" alt="Honest test"><p class="cap">Built-up share, 2-ring buffer: the neighbour model drops from 0.79 to 0.41; the satellite model stays at 0.97.</p>
+<div class="key"><b>Why it matters:</b> a model that looks good on random tests can fail in a new town. Always ask how accuracy changes when whole areas are hidden.</div>
+
+<h2>5 · White space</h2>
+<ol>
+<li>Open <b>5 White space</b> and press <b>Build the café profile</b>.</li>
+<li>The app averages the fingerprints of the 59 hexagons that list a branded café (Starbucks, Costa, Chaayos, Blue Tokai, Third Wave, Café Coffee Day, Barista) into one profile.</li>
+<li>Purple shows how closely each hexagon resembles that profile; black dots mark cafés today; red outlines mark the 15 most café-like hexagons with no branded café yet.</li>
+<li>The panel reports an honest hit rate (profile rebuilt without each block) and a shortlist with place names, shops &amp; eateries and built-up share.</li>
+</ol>
+<img src="img/d5_ws.jpg" alt="White space"><p class="cap">White space for a café chain.</p>
+<div class="key"><b>Next step:</b> visit the shortlisted sectors; check rents, footfall, parking and competitors; confirm listings, which can be incomplete.</div>
+
+<h2>About the data</h2>
+<img src="img/d6_about.jpg" alt="About the data">
+<ul>
+<li><b>Fingerprints:</b> AlphaEarth Foundations satellite embeddings V1 (Google DeepMind), annual 2017–2024, 10 m, CC-BY 4.0, read from the Source Cooperative mirror; averaged per H3 resolution-8 hexagon (2020 and 2024 shipped in the app; 2017 used for the 40 m construction layer).</li>
+<li><b>Answer keys:</b> ESA WorldCover 2021; JRC Global Human Settlement Layer; Overture Maps release 2026-10-21 (places and buildings).</li>
+<li><b>Imagery:</b> Sentinel-2 cloudless 2020 and 2024 by EOX IT Services GmbH (contains modified Copernicus Sentinel data). Basemap: OpenFreeMap, © OpenMapTiles, © OpenStreetMap contributors.</li>
+<li><b>Methods:</b> cosine similarity; nearest-average-fingerprint classifier; 1 − cosine change; ridge regression with random 5-fold and H3 resolution-6 block cross-validation with ring buffers; embedding profile with block-held-out evaluation.</li>
+</ul>
+
+<h2>Session 12 task (before Session 13)</h2>
+<ol>
+<li><b>Look-alike:</b> pick a place you know; find its ten look-alikes. Do they match what you know?</li>
+<li><b>Teach:</b> label 5 hexagons per class yourself (not the auto button). Record the agreement score.</li>
+<li><b>Change:</b> find one true change and one false alarm; screenshot both satellite years.</li>
+<li><b>Honest test:</b> run buffers 0, 2 and 8 for shops &amp; eateries; write two lines on what the gap means for a chain entering a new city.</li>
+<li><b>White space:</b> pick one red-outlined hexagon; in 100 words, say what you would check on the ground and why.</li>
+</ol>
+<p>Submit one slide per step (five slides) by email before Session 13.</p>
+</body>
+</html>
