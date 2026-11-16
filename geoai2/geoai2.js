@@ -111,7 +111,9 @@ async function loadWx() {
   map.getSource('pins').setData(FC([{ type: 'Feature', properties: { n: `${la.toFixed(2)}, ${lo.toFixed(2)}`, c: '#c00000' }, geometry: { type: 'Point', coordinates: [lo, la] } }]));
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${la.toFixed(3)}&longitude=${lo.toFixed(3)}&hourly=temperature_2m,precipitation,wind_speed_10m&models=${MODELS.map(m => m[0]).join(',')}&forecast_days=7&timezone=auto`;
   try { st.wxData = await fetch(url).then(r => r.json()); } catch (e) { $('#wx-out').textContent = 'Could not reach Open-Meteo. Check your connection and try again.'; busy(false); return; }
-  busy(false); drawWx();
+  busy(false);
+  if (!st.wxData || st.wxData.error || !st.wxData.hourly) { $('#wx-out').textContent = 'Open-Meteo did not return a forecast' + (st.wxData && st.wxData.reason ? ': ' + st.wxData.reason : '.') + ' Try again in a minute.'; st.wxData = null; const c = $('#wx-c'); c.getContext('2d').clearRect(0, 0, c.width, c.height); return; }
+  drawWx();
 }
 function drawWx() {
   const d = st.wxData; if (!d || !d.hourly) return;
