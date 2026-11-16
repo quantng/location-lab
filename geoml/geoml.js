@@ -143,18 +143,18 @@ function rOls() {
   const b = R.ols.betas, nm = { l_inc: 'log income', d_coast: 'Distance to coast (km)', d_dtla: 'Distance to Downtown (km)', l_den: 'log density' };
   $('#ols-out').innerHTML = `<div class="ga-big">R² = ${f2(R.ols.r2)}</div><table><tr><th>Variable</th><th class="n">Coefficient</th></tr>` +
     Object.keys(nm).map(k => `<tr><td>${nm[k]}</td><td class="n">${b[k].toFixed(4)}</td></tr>`).join('') +
-    `</table><p>Moran's I of the errors: <b>${f2(R.moran_res.I)}</b>. The errors cluster in space, so the model is missing something that neighbours share.</p>`;
+    `</table><p>Moran's I of the mistakes: <b>${f2(R.moran_res.I)}</b> (0 would mean random). The model undervalues the Westside and overvalues South LA: it is missing what neighbours share.</p>`;
 }
 
 // ---------- 3 lag & error ----------
 function rSar() {
   const v = st.sarM === 'ols' ? C.ols : C.lagr; paint(i => divCol(v[i], 0.6));
   legend(resLegend(st.sarM === 'ols' ? 'Errors: ordinary regression' : 'Errors: spatial lag model'));
-  $('#sar-out').innerHTML = `<table><tr><th>Model</th><th class="n">Spatial term</th><th class="n">AIC</th><th class="n">Moran's I of errors</th></tr>
+  $('#sar-out').innerHTML = `<table><tr><th>Model</th><th class="n">Spatial term</th><th class="n">AIC</th><th class="n">Moran's I of mistakes</th></tr>
   <tr><td>Ordinary regression</td><td class="n">–</td><td class="n">${R.ols.aic.toFixed(0)}</td><td class="n">${f2(R.moran_res.I)}</td></tr>
   <tr><td>Spatial lag</td><td class="n">ρ = ${f2(R.lag.rho)}</td><td class="n">${R.lag.aic.toFixed(0)}</td><td class="n">${f2(R.moran_lagres)}</td></tr>
   <tr><td>Spatial error</td><td class="n">λ = ${f2(R.err.lam)}</td><td class="n">${R.err.aic.toFixed(0)}</td><td class="n">${f2(R.moran_errres)}</td></tr></table>
-  <p class="ga-small">Lagrange multiplier tests on the ordinary regression: robust LM lag ${R.ols.rlm_lag[0].toFixed(0)}, robust LM error ${R.ols.rlm_err[0].toFixed(0)}; both p &lt; 0.001. Lower AIC is better.</p>`;
+  <p class="ga-small">Moran's I of the mistakes near 0 means no pattern is left. Lower AIC means a better fit.</p>`;
 }
 
 // ---------- 4 LISA ----------
