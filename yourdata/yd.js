@@ -22,7 +22,8 @@ const SEQ = ['#f1eef6', '#d0d1e6', '#a6bddb', '#74a9cf', '#2b8cbe', '#045a8d'], 
 const KCOL = ['#c00000', '#1f78b4', '#33a02c', '#6a3d9a', '#ff7f00', '#e7298a', '#a6761d', '#17becf', '#666666'];
 const GREY = '#d0d4dc';
 function setRes(name, arrA) { const out = new Array(N).fill(null); A.ix.forEach((i, k) => out[i] = arrA[k]); RES[name] = out; }
-const nameOf = i => { const c = COLS.txt[0] || null; const v = c ? FC.features[i].properties[c] : null; return v ? String(v) : 'Place ' + (i + 1); };
+const NAMEISH = /name|title|place|site|store|branch|tract|ward|district|city/i, H3ISH = /^(h3|h3_index|h3_cell|hex|hex_id)$/i;
+const nameOf = i => { const p = FC.features[i].properties, c = COLS.txt.find(k => NAMEISH.test(k)); if (c && p[c] != null) return String(p[c]); const o = COLS.txt.find(k => !H3ISH.test(k)); return o && p[o] != null ? `${p[o]} #${i + 1}` : 'Place ' + (i + 1); };
 
 // ---------------- map ----------------
 function initMap() {
