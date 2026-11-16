@@ -3,128 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GeoAI Studio · Location Lab</title>
-<meta name="description" content="Five GeoAI techniques on real Indian data, in the browser: look-alike places, teach the map, what changed, honest testing and white space.">
-<link rel="stylesheet" href="../lib/maplibre-gl.css">
-<link rel="stylesheet" href="geoai.css?v=1">
-<script src="../lib/maplibre-gl.js"></script>
-<script src="../lib/h3-js.umd.js"></script>
+<title>GeoAI · Location Lab</title>
+<meta name="description" content="The eight categories of GeoAI, one tab each: spatially explicit machine learning, geospatial computer vision, spatial representation learning, geospatial foundation models, spatio-temporal and network AI, geo-language AI, generative GeoAI and Earth-system AI.">
+<link rel="stylesheet" href="geoai.css?v=3">
+<style>
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column}
+.cat-bar{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:#f7f8fb}
+.cat-bar button{display:flex;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 10px;font:600 13.5px/1.2 inherit;font-family:inherit;color:#14213d;cursor:pointer;min-height:44px}
+.cat-bar button span{flex:none;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#e6eaf2;color:#1e3063;font-size:13px}
+.cat-bar button[aria-selected=true]{background:#1e3063;color:#fff;border-color:#1e3063}
+.cat-bar button[aria-selected=true] span{background:#c00000;color:#fff}
+.cat-stage{flex:1;position:relative;min-height:0}
+.cat-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:#fff}
+.cat-stage iframe.on{display:block}
+@media (max-width:1100px){.cat-bar{grid-template-columns:repeat(4,1fr)}}
+</style>
 </head>
 <body>
 <header class="ga-top">
-  <div class="ga-brand"><span class="ga-mark" aria-hidden="true"></span><b>Location Lab</b><span class="ga-sub">· GeoAI Studio</span></div>
+  <div class="ga-brand"><span class="ga-mark" aria-hidden="true"></span><b>Location Lab</b><span class="ga-sub">· GeoAI: the eight categories</span></div>
   <span class="ga-spacer"></span>
-  <a class="ga-ghost" href="../geoai2/" rel="noopener"><b>Studio II →</b> categories 5–8</a>
-  <a class="ga-ghost" href="video/GeoAI_Studio_walkthrough.mp4" target="_blank" rel="noopener">Video</a>
-  <a class="ga-ghost" href="manual.html" target="_blank" rel="noopener">Manual</a>
+  <a class="ga-ghost" href="../geoai2/video/GeoAI_8_categories_walkthrough.mp4" target="_blank" rel="noopener">Video</a>
   <a class="ga-ghost" href="../" rel="noopener">← Workbench</a>
 </header>
-<main class="ga-app">
-  <aside class="ga-side">
-    <nav class="ga-tabs" role="tablist">
-      <button role="tab" data-t="sim" aria-selected="true"><span>1</span>Look-alike places</button>
-      <button role="tab" data-t="teach" aria-selected="false"><span>2</span>Teach the map</button>
-      <button role="tab" data-t="chg" aria-selected="false"><span>3</span>What changed</button>
-      <button role="tab" data-t="test" aria-selected="false"><span>4</span>Honest test</button>
-      <button role="tab" data-t="ws" aria-selected="false"><span>5</span>White space</button>
-      <button role="tab" data-t="about" aria-selected="false"><span>i</span>About the data</button>
-    </nav>
-
-    <!-- 1 -->
-    <section class="ga-pane" id="p-sim">
-      <h2>Find places that look alike</h2>
-      <p class="ga-lead">Every hexagon (about 0.74 km²) carries a 64-number "fingerprint" that an AI model learned from a year of satellite data. Click a hexagon, and every other hexagon is coloured by how similar its fingerprint is.</p>
-      <div class="ga-row"><span class="ga-lab">Start from</span>
-        <button class="ga-chip" data-seed="28.4973,77.0918">Cyber City</button>
-        <button class="ga-chip" data-seed="28.4721,77.0590">MDI campus</button>
-        <button class="ga-chip" data-seed="28.4948,77.1182">Aravalli park</button>
-        <button class="ga-chip" data-seed="28.3672,76.9207">IMT Manesar</button>
-      </div>
-      <div class="ga-row"><span class="ga-lab">Search in</span>
-        <div class="ga-seg"><button id="sim-ggn" class="on">Gurugram</button><button id="sim-mum">Mumbai</button></div>
-      </div>
-      <div id="sim-out" class="ga-card">Click any hexagon on the map, or press a button above.</div>
-    </section>
-
-    <!-- 2 -->
-    <section class="ga-pane" id="p-teach" hidden>
-      <h2>Teach the map with a few examples</h2>
-      <p class="ga-lead">Pick a class, then click a few hexagons that belong to it. The AI averages the fingerprints of your examples and labels every other hexagon by the closest average.</p>
-      <div class="ga-row"><span class="ga-lab">I am marking</span>
-        <div class="ga-seg" id="teach-cls">
-          <button data-c="Built-up" class="on"><i style="background:#c0392b"></i>Built-up</button>
-          <button data-c="Farmland"><i style="background:#e0b100"></i>Farmland</button>
-          <button data-c="Green"><i style="background:#2e8b57"></i>Green / scrub</button>
-        </div>
-      </div>
-      <div class="ga-row">
-        <button id="teach-auto" class="ga-ghostbtn">Pick 5 per class for me</button>
-        <button id="teach-run" class="ga-primary">Label the whole map</button>
-        <button id="teach-clear" class="ga-ghostbtn">Clear</button>
-      </div>
-      <div id="teach-out" class="ga-card">No examples yet.</div>
-    </section>
-
-    <!-- 3 -->
-    <section class="ga-pane" id="p-chg" hidden>
-      <h2>What changed between two years?</h2>
-      <p class="ga-lead">Compare each hexagon's fingerprint in two years. A big gap means the place changed. Switch on the satellite image to check what the change actually is.</p>
-      <div class="ga-row"><span class="ga-lab">Show</span>
-        <div class="ga-seg" id="chg-mode">
-          <button data-m="any" class="on">Any change 2020→2024</button>
-          <button data-m="built">Turned built-up 2017→2024</button>
-        </div>
-      </div>
-      <div class="ga-row"><span class="ga-lab">Satellite</span>
-        <div class="ga-seg" id="chg-sat">
-          <button data-s="none" class="on">Off</button><button data-s="2020">2020</button><button data-s="2024">2024</button>
-        </div>
-      </div>
-      <div class="ga-row"><span class="ga-lab">Go to</span>
-        <button class="ga-chip" data-fly="28.421,76.9295,14">Sector 94</button>
-        <button class="ga-chip" data-fly="28.2594,77.1615,14">Sohna</button>
-        <button class="ga-chip" data-fly="28.3977,77.0727,14">Sector 69-70</button>
-        <button class="ga-chip" data-fly="28.3801,76.6621,14">Pataudi farms</button>
-      </div>
-      <div id="chg-out" class="ga-card"></div>
-    </section>
-
-    <!-- 4 -->
-    <section class="ga-pane" id="p-test" hidden>
-      <h2>Test a model honestly</h2>
-      <p class="ga-lead">Two models predict the same thing. One reads the satellite fingerprint. The other copies its six nearest known neighbours. Test both the easy way (random hexagons) and the honest way (hide a whole block of the city, plus a buffer around it).</p>
-      <div class="ga-row"><span class="ga-lab">Predict</span>
-        <div class="ga-seg" id="test-y">
-          <button data-y="built" class="on">Built-up share</button>
-          <button data-y="shops">Shops &amp; eateries</button>
-        </div>
-      </div>
-      <div class="ga-row"><span class="ga-lab">Buffer</span>
-        <input type="range" id="test-k" min="0" max="8" step="1" value="2"><b id="test-kv">2 rings ≈ 1.8 km</b>
-      </div>
-      <div class="ga-row"><button id="test-run" class="ga-primary">Run both tests</button></div>
-      <div id="test-out" class="ga-card">Press "Run both tests".</div>
-    </section>
-
-    <!-- 5 -->
-    <section class="ga-pane" id="p-ws" hidden>
-      <h2>Find white space for a café chain</h2>
-      <p class="ga-lead">Average the fingerprints of every hexagon that already has a branded café (Starbucks, Costa, Chaayos, Blue Tokai, Third Wave, Café Coffee Day, Barista). Hexagons that look like that profile but have no branded café yet are candidate white space, to be checked on the ground.</p>
-      <div class="ga-row"><button id="ws-run" class="ga-primary">Build the café profile</button></div>
-      <div id="ws-out" class="ga-card">Press the button.</div>
-    </section>
-
-    <section class="ga-pane" id="p-about" hidden>
-      <h2>About the data</h2>
-      <div id="about-out" class="ga-card ga-small"></div>
-    </section>
-  </aside>
-  <div class="ga-mapwrap">
-    <div id="map"></div>
-    <div id="legend" class="ga-legend" hidden></div>
-    <div id="busy" class="ga-busy" hidden>Working…</div>
-  </div>
-</main>
-<script type="module" src="geoai.js?v=1"></script>
+<nav class="cat-bar" role="tablist" id="cats"></nav>
+<main class="cat-stage" id="stage"></main>
+<script>
+// One tab per GeoAI category; each loads the matching Location Lab view in embedded mode.
+const CATS = [
+  ['Spatial ML', '../geoml/?embed=1&tab=gwr&tabs=gwr,rf'],
+  ['Computer vision', 'studio.html?embed=1&tab=chg'],
+  ['Representation learning', 'studio.html?embed=1&tab=sim&tabs=sim,ws'],
+  ['Foundation models', 'studio.html?embed=1&tab=teach'],
+  ['Network AI', '../geoai2/?embed=1&tab=net'],
+  ['Geo-language AI', '../geoai2/?embed=1&tab=lang'],
+  ['Generative GeoAI', '../geoai2/?embed=1&tab=gen'],
+  ['Earth-system AI', '../geoai2/?embed=1&tab=wx'],
+];
+const bar = document.getElementById('cats'), stage = document.getElementById('stage'), frames = {};
+CATS.forEach(([n], i) => { const b = document.createElement('button'); b.role = 'tab'; b.dataset.k = i + 1; b.innerHTML = `<span>${i + 1}</span>${n}`; b.onclick = () => open(i + 1); bar.appendChild(b); });
+function open(k) {
+  if (!frames[k]) { const f = document.createElement('iframe'); f.id = 'f' + k; f.name = 'cat' + k; f.title = CATS[k - 1][0]; f.src = CATS[k - 1][1]; stage.appendChild(f); frames[k] = f; }
+  Object.entries(frames).forEach(([j, f]) => f.classList.toggle('on', +j === k));
+  bar.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', +b.dataset.k === k));
+  history.replaceState(null, '', '#' + k); window.__cat = k;
+}
+open(Math.min(8, Math.max(1, parseInt(location.hash.slice(1)) || 1)));
+</script>
 </body>
 </html>
