@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoML · Location Lab</title>
+<meta name="description" content="From spatial statistics to machine learning to GeoAI, step by step on Los Angeles census tracts: Moran's I, regression, spatial lag and error models, LISA, Gi*, GWR, random forest, clustering, classification and satellite embeddings.">
+<link rel="stylesheet" href="../lib/maplibre-gl.css">
+<link rel="stylesheet" href="geoml.css?v=1">
+<script src="../lib/maplibre-gl.js"></script>
+</head>
+<body>
+<header class="ga-top">
+  <div class="ga-brand"><span class="ga-mark" aria-hidden="true"></span><b>Location Lab</b><span class="ga-sub">· GeoML: from spatial statistics to GeoAI</span></div>
+  <span class="ga-spacer"></span>
+  <a class="ga-ghost" href="../" rel="noopener">← Workbench</a>
+</header>
+<main class="ga-app">
+  <aside class="ga-side">
+    <nav class="ga-tabs" role="tablist">
+      <button role="tab" data-t="data" aria-selected="true"><span>0</span>The data</button>
+      <button role="tab" data-t="moran" aria-selected="false"><span>1</span>Moran's I</button>
+      <button role="tab" data-t="ols" aria-selected="false"><span>2</span>Regression</button>
+      <button role="tab" data-t="sar" aria-selected="false"><span>3</span>Lag &amp; error</button>
+      <button role="tab" data-t="lisa" aria-selected="false"><span>4</span>LISA</button>
+      <button role="tab" data-t="gi" aria-selected="false"><span>5</span>Getis-Ord Gi*</button>
+      <button role="tab" data-t="gwr" aria-selected="false"><span>6</span>GWR</button>
+      <button role="tab" data-t="rf" aria-selected="false"><span>7</span>Random forest</button>
+      <button role="tab" data-t="km" aria-selected="false"><span>8</span>Clustering</button>
+      <button role="tab" data-t="cls" aria-selected="false"><span>9</span>Classification</button>
+      <button role="tab" data-t="emb" aria-selected="false"><span>10</span>Embeddings</button>
+      <button role="tab" data-t="geoai" aria-selected="false"><span>→</span>GeoAI</button>
+    </nav>
+
+    <section class="ga-pane" id="p-data">
+      <h2>One city, one question</h2>
+      <p class="ga-lead">Why does a home near Beverly Hills cost about three times one in Compton? Each shape is a census tract (2,006 in the Los Angeles basin). Every step in this tab answers the same question with a stronger tool.</p>
+      <div class="ga-row"><span class="ga-lab">Show</span>
+        <div class="ga-seg" id="data-var">
+          <button data-v="hv" class="on">Home value</button><button data-v="inc">Income</button><button data-v="den">Density</button><button data-v="dc">To coast</button><button data-v="dd">To Downtown</button>
+        </div>
+      </div>
+      <div id="data-out" class="ga-card">Click any tract to see its numbers.</div>
+      <p class="ga-note">Home value: median value of owner-occupied homes (the Census caps it at $2m). Income: median household income. Density: people per km². Distances in km.</p>
+    </section>
+
+    <section class="ga-pane" id="p-moran" hidden>
+      <h2>Global Moran's I: are neighbours alike?</h2>
+      <p class="ga-lead">Click a tract. Its 8 nearest neighbouring tracts are outlined, and the dot for that tract lights up in the scatter: its own value against its neighbours' average. Moran's I is the slope of the line.</p>
+      <div id="moran-out" class="ga-card"></div>
+      <canvas id="moran-sc" class="gm-sc" width="800" height="640"></canvas>
+    </section>
+
+    <section class="ga-pane" id="p-ols" hidden>
+      <h2>Ordinary regression and its errors</h2>
+      <p class="ga-lead">log(home value) is regressed on income, distance to the coast, distance to Downtown LA and density. The map shows where the model is wrong. Red: priced above the model. Blue: priced below.</p>
+      <div id="ols-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-sar" hidden>
+      <h2>Spatial lag and spatial error models</h2>
+      <p class="ga-lead">Both models add the neighbours. The lag model lets a tract's price depend on its neighbours' prices; the error model lets unmeasured local factors be shared. Switch the map to see the errors before and after.</p>
+      <div class="ga-row"><span class="ga-lab">Map errors of</span>
+        <div class="ga-seg" id="sar-m"><button data-m="ols" class="on">Ordinary regression</button><button data-m="lag">Spatial lag model</button></div>
+      </div>
+      <div id="sar-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-lisa" hidden>
+      <h2>Local Moran (LISA): where are the clusters?</h2>
+      <p class="ga-lead">One Moran's I per tract. A tract is in a cluster when it and its neighbours are significantly alike (p &lt; 0.05, 999 permutations). Click a class to show it alone.</p>
+      <div class="ga-row"><div class="ga-seg" id="lisa-f"></div></div>
+      <div id="lisa-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-gi" hidden>
+      <h2>Getis-Ord Gi*: hot spots and cold spots</h2>
+      <p class="ga-lead">For each tract, add up home values of every tract within 3 km, itself included, and compare with what chance would give. Significantly high sums are hot spots; low sums are cold spots.</p>
+      <div id="gi-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-gwr" hidden>
+      <h2>Geographically weighted regression</h2>
+      <p class="ga-lead">GWR fits one regression per tract, using its 70 nearest tracts with weights that fall with distance. Each variable gets its own map of local effects (standardised coefficients).</p>
+      <div class="ga-row"><span class="ga-lab">Map</span>
+        <div class="ga-seg" id="gwr-v"><button data-v="g_inc" class="on">Income</button><button data-v="g_dc">To coast</button><button data-v="g_dd">To Downtown</button><button data-v="g_den">Density</button><button data-v="g_r2">Local R²</button></div>
+      </div>
+      <div id="gwr-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-rf" hidden>
+      <h2>Random forest: predict tracts it never saw</h2>
+      <p class="ga-lead">400 decision trees each learn rules from the data and vote. Every prediction here is for a tract held out of training (5-fold cross-validation). Add more geography to the inputs and watch the errors shrink.</p>
+      <div class="ga-row"><span class="ga-lab">Inputs</span>
+        <div class="ga-seg" id="rf-s"><button data-s="p_base" class="on">4 variables</button><button data-s="p_sp">+ neighbours' averages</button><button data-s="p_emb">+ satellite embeddings</button></div>
+      </div>
+      <div id="rf-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-km" hidden>
+      <h2>Clustering: neighbourhood types without labels</h2>
+      <p class="ga-lead">k-means groups tracts by income, home value, density and distance to the coast (all standardised). Nobody tells it where anything is. Change k and run it again in your browser.</p>
+      <div class="ga-row"><span class="ga-lab">Clusters k</span><input type="range" id="km-k" min="3" max="8" value="5"><b id="km-kv">5</b>
+        <button id="km-run" class="ga-primary">Run k-means</button><button id="km-reset" class="ga-ghostbtn">Named five types</button></div>
+      <div id="km-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-cls" hidden>
+      <h2>Classification: which tracts are prime?</h2>
+      <p class="ga-lead">Prime means the top quarter of home values (above $1.03m). A random forest classifier labels each held-out tract prime or not.</p>
+      <div class="ga-row"><span class="ga-lab">Inputs</span>
+        <div class="ga-seg" id="cls-s"><button data-s="c_base" class="on">4 variables</button><button data-s="c_emb">+ satellite embeddings</button></div>
+      </div>
+      <div id="cls-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-emb" hidden>
+      <h2>Satellite embeddings: what the satellite sees</h2>
+      <p class="ga-lead">An AI foundation model (AlphaEarth) turns a year of satellite data into 64 numbers per 10 m pixel. Averaged per tract, they group the city into six looks without any price data. Click a tract to find the tracts that look most like it.</p>
+      <div class="ga-row"><span class="ga-lab">Start from</span>
+        <button class="ga-chip" data-p="-118.4973,34.0094">Santa Monica Pier</button>
+        <button class="ga-chip" data-p="-118.4593,34.1002">Bel Air</button>
+        <button class="ga-chip" data-p="-118.2437,34.0522">Downtown LA</button>
+        <button class="ga-chip" data-p="-118.2201,33.8958">Compton</button>
+        <button class="ga-chip" id="emb-looks">Six looks</button>
+      </div>
+      <div id="emb-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-geoai" hidden>
+      <h2>From these steps to the eight categories of GeoAI</h2>
+      <p class="ga-lead">Each idea above has a GeoAI descendant. The categories follow the accepted academic and industry classifications.</p>
+      <div id="geoai-out"></div>
+      <p class="ga-note">Janowicz et al. (2020), IJGIS; Li (2020), JOSIS; Gao, Hu and Li (eds), Handbook of Geospatial AI (2024); Mai et al. (2022, 2024); Xiao et al. (2024); Esri ArcGIS Pro GeoAI toolbox.</p>
+    </section>
+  </aside>
+  <div class="ga-mapwrap">
+    <div id="map"></div>
+    <div id="legend" class="ga-legend" hidden></div>
+    <div id="busy" class="ga-busy">Loading Los Angeles…</div>
+  </div>
+</main>
+<script src="geoml.js?v=1"></script>
+</body>
+</html>
