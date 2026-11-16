@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your data · GeoML and GeoAI · Location Lab</title>
+<meta name="description" content="Bring your own file to Location Lab: run Moran's I, regression, spatial lag and error, LISA, Gi*, GWR, random forest, clustering and classification, and the GeoAI tabs, on your own places. Everything runs in your browser.">
+<link rel="stylesheet" href="../lib/maplibre-gl.css">
+<link rel="stylesheet" href="yd.css?v=1">
+<script src="../lib/maplibre-gl.js"></script>
+<script src="../lib/h3-js.umd.js"></script>
+<script src="../lib/flatgeobuf-geojson.min.js"></script>
+<script src="../lib/geotiff.js"></script>
+</head>
+<body>
+<header class="ga-top">
+  <div class="ga-brand"><span class="ga-mark" aria-hidden="true"></span><b>Location Lab</b><span class="ga-sub">· Your data: GeoML and GeoAI on your own file</span></div>
+  <span class="ga-spacer"></span>
+  <a class="ga-ghost" href="../geoml/" rel="noopener">GeoML (demo)</a>
+  <a class="ga-ghost" href="../geoai/" rel="noopener">GeoAI (demo)</a>
+  <a class="ga-ghost" href="../" rel="noopener">← Workbench</a>
+</header>
+<main class="ga-app">
+  <aside class="ga-side">
+    <nav class="yd-nav" id="nav">
+      <div class="yd-grp">Start</div>
+      <button data-t="load" class="on"><span>0</span>Load your data</button>
+      <div class="yd-grp">GeoML: spatial statistics → machine learning</div>
+      <button data-t="moran" disabled><span>1</span>Moran's I</button>
+      <button data-t="ols" disabled><span>2</span>Regression</button>
+      <button data-t="sar" disabled><span>3</span>Lag &amp; error</button>
+      <button data-t="lisa" disabled><span>4</span>LISA</button>
+      <button data-t="gi" disabled><span>5</span>Gi*</button>
+      <button data-t="gwr" disabled><span>6</span>GWR</button>
+      <button data-t="rf" disabled><span>7</span>Random forest</button>
+      <button data-t="km" disabled><span>8</span>Clustering</button>
+      <button data-t="cls" disabled><span>9</span>Classification</button>
+      <div class="yd-grp">GeoAI: the eight categories on your places</div>
+      <button data-t="g1" disabled><span>1</span>Spatial ML</button>
+      <button data-t="g2" disabled><span>2</span>Satellite years</button>
+      <button data-t="g3" disabled><span>3</span>Look-alikes</button>
+      <button data-t="g4" disabled><span>4</span>Teach the map</button>
+      <button data-t="g5" disabled><span>5</span>Network</button>
+      <button data-t="g6" disabled><span>6</span>Place names</button>
+      <button data-t="g7" disabled><span>7</span>Sharper images</button>
+      <button data-t="g8" disabled><span>8</span>AI weather</button>
+      <div class="yd-grp">Finish</div>
+      <button data-t="exp" disabled><span>↓</span>Download results</button>
+    </nav>
+
+    <section class="ga-pane" id="p-load">
+      <h2>Load your data</h2>
+      <p class="ga-lead">Drop a file on the map, or choose one. Your file stays in your browser: nothing is uploaded.</p>
+      <label class="yd-drop" id="drop"><input type="file" id="file" accept=".geojson,.json,.csv,.parquet,.fgb,.gz" hidden><b>Choose a file</b> or drop it here<br><span class="ga-small">GeoJSON · CSV with lat/lon (or an h3 column) · GeoParquet · FlatGeobuf</span></label>
+      <div class="ga-row"><span class="ga-lab">Or try</span>
+        <button class="ga-chip" data-sample="la_tracts.geojson">LA tracts</button>
+        <button class="ga-chip" data-sample="gurugram_hexagons.csv">Gurugram hexagons</button>
+        <button class="ga-chip" data-sample="gurugram_places.csv">Gurugram places</button>
+      </div>
+      <div id="load-info"></div>
+      <div id="setup" hidden>
+        <h3>Choose what to analyse</h3>
+        <div class="ga-row"><span class="ga-lab">Explain (y)</span><select id="ysel"></select><label class="ga-small"><input type="checkbox" id="ylog"> use log</label></div>
+        <div class="ga-lab" style="margin-top:6px">Explanatory variables (X)</div>
+        <div id="xsel" class="yd-checks"></div>
+        <div class="ga-row"><span class="ga-lab">Neighbours</span><input type="number" id="kk" min="3" max="30" value="8" style="width:64px"> <span class="ga-small">nearest places count as neighbours</span></div>
+        <div class="ga-row"><button id="apply" class="ga-primary">Use these settings</button></div>
+        <div id="apply-out" class="ga-small"></div>
+      </div>
+      <details class="yd-help" open>
+        <summary>What file do I need?</summary>
+        <p><b>One row per place.</b> Places can be polygons (tracts, wards, districts), points (stores, branches, sites) or H3 hexagons (a column named <code>h3</code>).</p>
+        <p><b>Numbers for the statistics.</b> One column to explain (sales, price, footfall, default rate) and a few to explain it with (income, distance, density…). At least 30 places; 200+ is better.</p>
+        <p><b>Optional: satellite embeddings.</b> Columns <code>A00</code>–<code>A63</code> (AlphaEarth, exported from Google Earth Engine) switch on look-alikes, teach-the-map and the embedding step of the random forest. The deck has a ready prompt to export them.</p>
+        <p><b>Optional: a name column</b> lets the Place names tab find your places in text.</p>
+        <p>Download a sample to see the format: <a href="samples/la_tracts.geojson" download>LA tracts (GeoJSON)</a> · <a href="samples/gurugram_hexagons.csv" download>Gurugram hexagons (CSV)</a> · <a href="samples/gurugram_places.csv" download>Gurugram places (CSV)</a></p>
+      </details>
+    </section>
+
+    <section class="ga-pane" id="p-moran" hidden><h2>Global Moran's I</h2><p class="ga-lead">Are neighbouring places alike? Click a place to see its neighbours and its dot in the scatter.</p><div id="moran-out" class="ga-card"></div><canvas id="moran-sc" class="gm-sc" width="800" height="640"></canvas></section>
+    <section class="ga-pane" id="p-ols" hidden><h2>Ordinary regression</h2><p class="ga-lead">y explained by your X variables. The map shows the mistakes: red = above the model, blue = below.</p><div id="ols-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-sar" hidden><h2>Spatial lag and spatial error</h2><p class="ga-lead">Both models add the neighbours (maximum likelihood). Switch the map to compare the mistakes.</p><div class="ga-row"><div class="ga-seg" id="sar-m"><button data-m="ols" class="on">Ordinary</button><button data-m="lag">Spatial lag</button><button data-m="err">Spatial error</button></div></div><div id="sar-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-lisa" hidden><h2>Local Moran (LISA)</h2><p class="ga-lead">Where are the clusters of high and low y? p &lt; 0.05, 499 permutations.</p><div id="lisa-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-gi" hidden><h2>Getis-Ord Gi*</h2><p class="ga-lead">Hot spots and cold spots of y among each place and its neighbours.</p><div id="gi-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-gwr" hidden><h2>Geographically weighted regression</h2><p class="ga-lead">One regression per place on its nearest places. The bandwidth (how many) is chosen by AICc.</p><div class="ga-row"><button id="gwr-run" class="ga-primary">Fit GWR</button><span id="gwr-prog" class="ga-small"></span></div><div class="ga-row"><span class="ga-lab">Map</span><select id="gwr-v"></select></div><div id="gwr-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-rf" hidden><h2>Random forest</h2><p class="ga-lead">100 trees, scored on places held out of training (5-fold cross-validation). Add geography and compare.</p><div class="ga-row"><div class="ga-seg" id="rf-s"><button data-s="base" class="on">X only</button><button data-s="sp">+ neighbours' averages</button><button data-s="emb">+ embeddings</button></div></div><div class="ga-row"><button id="rf-run" class="ga-primary">Run</button><span id="rf-prog" class="ga-small"></span></div><div id="rf-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-km" hidden><h2>Clustering (k-means)</h2><p class="ga-lead">Groups your places by y and X (standardised). No labels needed.</p><div class="ga-row"><span class="ga-lab">Clusters k</span><input type="range" id="km-k" min="2" max="9" value="5"><b id="km-kv">5</b><button id="km-run" class="ga-primary">Run</button></div><div class="ga-row"><label class="ga-small"><input type="checkbox" id="km-emb"> cluster on embeddings instead</label></div><div id="km-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-cls" hidden><h2>Classification</h2><p class="ga-lead">Is a place in the top group of y? A random forest classifier, scored on held-out places.</p><div class="ga-row"><span class="ga-lab">Top</span><input type="range" id="cls-q" min="10" max="50" step="5" value="25"><b id="cls-qv">25%</b><button id="cls-run" class="ga-primary">Run</button></div><div id="cls-out" class="ga-card"></div></section>
+
+    <section class="ga-pane" id="p-g1" hidden><h2>1 · Spatially explicit ML</h2><p class="ga-lead">GeoAI category 1 on your data is the GeoML sequence: start with Moran's I, then GWR (local effects) and the random forest with neighbours' averages.</p><div class="ga-row"><button class="ga-primary" data-go="gwr">Open GWR</button><button class="ga-ghostbtn" data-go="rf">Open random forest</button></div></section>
+    <section class="ga-pane" id="p-g2" hidden><h2>2 · Satellite years at your places</h2><p class="ga-lead">Your places over cloud-free Sentinel-2 images (10 m) of different years. Click a place to zoom in, then switch years to see what changed.</p><div class="ga-row"><span class="ga-lab">Year</span><div class="ga-seg" id="g2-y"><button data-y="2018">2018</button><button data-y="2020">2020</button><button data-y="2022">2022</button><button data-y="2024" class="on">2024</button></div></div><div class="ga-row"><span class="ga-lab">Outline</span><input type="range" id="g2-o" min="0" max="100" value="60"></div><div id="g2-out" class="ga-card">Click a place on the map.</div></section>
+    <section class="ga-pane" id="p-g3" hidden><h2>3 · Look-alike places</h2><p class="ga-lead">Click a place: every other place is coloured by how alike it is. Uses embeddings (A00–A63) if your file has them, otherwise your standardised y and X.</p><div id="g3-out" class="ga-card">Click a place on the map.</div></section>
+    <section class="ga-pane" id="p-g4" hidden><h2>4 · Teach the map</h2><p class="ga-lead">Pick a class, click a few example places, then label all places by the nearest class average (embeddings if present, otherwise y and X).</p><div class="ga-row"><div class="ga-seg" id="g4-c"><button data-c="0" class="on"><i style="background:#c00000"></i>Class A</button><button data-c="1"><i style="background:#e6ab02"></i>Class B</button><button data-c="2"><i style="background:#1b9e77"></i>Class C</button></div></div><div class="ga-row"><button id="g4-run" class="ga-primary">Label all places</button><button id="g4-clr" class="ga-ghostbtn">Clear</button></div><div class="ga-row"><span class="ga-lab">Compare with</span><select id="g4-ref"><option value="">(no column)</option></select></div><div id="g4-out" class="ga-card">No examples yet.</div></section>
+    <section class="ga-pane" id="p-g5" hidden><h2>5 · Network of your places</h2><p class="ga-lead">Each place is linked to its nearest neighbours: a graph. Click a place and add rounds of message passing, as a graph neural network does.</p><div class="ga-row"><span class="ga-lab">Rounds</span><input type="range" id="g5-k" min="0" max="5" value="2"><b id="g5-kv">2</b></div><div id="g5-out" class="ga-card">Click a place on the map.</div></section>
+    <section class="ga-pane" id="p-g6" hidden><h2>6 · Find your places in text</h2><p class="ga-lead">Your file's name column becomes the gazetteer. Paste any text (news, reviews, complaints) and press Find.</p><div class="ga-row"><span class="ga-lab">Name column</span><select id="g6-col"></select></div><textarea id="g6-txt" rows="6" class="yd-ta"></textarea><div class="ga-row"><button id="g6-run" class="ga-primary">Find places</button></div><div id="g6-out" class="ga-card"></div></section>
+    <section class="ga-pane" id="p-g7" hidden><h2>7 · Sharper images</h2><p class="ga-lead">Click a place to zoom in, then blend from the 10 m satellite image to the sub-metre aerial image: the detail a super-resolution model must create.</p><div class="ga-row"><span class="ga-lab">Blend</span><span class="ga-small">10 m</span><input type="range" id="g7-a" min="0" max="100" value="0"><span class="ga-small">&lt;1 m</span></div><div id="g7-out" class="ga-card">Click a place on the map.</div></section>
+    <section class="ga-pane" id="p-g8" hidden><h2>8 · AI weather at your places</h2><p class="ga-lead">ECMWF's AI model (AIFS) for up to 50 of your places, live from Open-Meteo: tomorrow's highest temperature and rain. Click a place for its 7-day chart from three models.</p><div class="ga-row"><button id="g8-run" class="ga-primary">Get forecasts</button><span id="g8-prog" class="ga-small"></span></div><canvas id="g8-c" class="gm-sc" width="820" height="460" hidden></canvas><div id="g8-out" class="ga-card"></div></section>
+
+    <section class="ga-pane" id="p-exp" hidden><h2>Download results</h2><p class="ga-lead">Your file plus every result you ran (mistakes, LISA and Gi* classes, GWR effects, predictions, clusters, similarity, labels, forecasts) as new columns.</p><div class="ga-row"><button id="exp-geo" class="ga-primary">GeoJSON</button><button id="exp-csv" class="ga-ghostbtn">CSV</button></div><div id="exp-out" class="ga-card"></div></section>
+  </aside>
+  <div class="ga-mapwrap">
+    <div id="map"></div>
+    <div id="legend" class="ga-legend" hidden></div>
+    <div id="busy" class="ga-busy" hidden>Working…</div>
+  </div>
+</main>
+<script type="module" src="yd.js?v=1"></script>
+</body>
+</html>
