@@ -60,7 +60,7 @@ function show(t) {
   if (t === 'net') { map.jumpTo({ center: [-118.36, 34.12], zoom: 10.4 }); rNet(); }
   if (t === 'lang') findPlaces(false);
   if (t === 'gen') { map.jumpTo({ center: [77.104, 28.442], zoom: 16 }); legend('<b>Two images of the same place</b>' + sw('#9aa58a', 'Slider left: Sentinel-2, 10 m per pixel (free)') + sw('#5a6b4a', 'Slider right: aerial, under 1 m per pixel')); }
-  if (t === 'wx') { map.jumpTo({ center: [78, 22], zoom: 3.6 }); if (st.wxData) drawWx(); }
+  if (t === 'wx') { map.jumpTo({ center: [78, 22], zoom: 3.6 }); if (st.wxData) drawWx(); else { st.wxPt = [77.03, 28.46]; loadWx(); } }
 }
 
 // ---------- 5 network ----------
