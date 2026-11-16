@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoAI Studio II · Location Lab</title>
+<meta name="description" content="Four more GeoAI categories in the browser: network AI on Los Angeles traffic sensors, reading place names from text, what image super-resolution must create, and AI weather forecasts for any point.">
+<link rel="stylesheet" href="../lib/maplibre-gl.css">
+<link rel="stylesheet" href="geoai2.css?v=1">
+<script src="../lib/maplibre-gl.js"></script>
+</head>
+<body>
+<header class="ga-top">
+  <div class="ga-brand"><span class="ga-mark" aria-hidden="true"></span><b>Location Lab</b><span class="ga-sub">· GeoAI Studio II</span></div>
+  <span class="ga-spacer"></span>
+  <a class="ga-ghost" href="../geoai/" rel="noopener">GeoAI Studio I</a>
+  <a class="ga-ghost" href="../" rel="noopener">← Workbench</a>
+</header>
+<main class="ga-app">
+  <aside class="ga-side">
+    <nav class="ga-tabs" role="tablist">
+      <button role="tab" data-t="net" aria-selected="true"><span>5</span>Network AI</button>
+      <button role="tab" data-t="lang" aria-selected="false"><span>6</span>Read places in text</button>
+      <button role="tab" data-t="gen" aria-selected="false"><span>7</span>Sharper images</button>
+      <button role="tab" data-t="wx" aria-selected="false"><span>8</span>AI weather</button>
+    </nav>
+
+    <section class="ga-pane" id="p-net">
+      <h2>Network AI: traffic sensors pass messages</h2>
+      <p class="ga-lead">207 highway speed sensors in Los Angeles (the METR-LA dataset used to test graph neural networks). Lines join sensors that sit close along the road. Click a sensor, then add rounds: in each round a graph neural network lets every sensor take in information from the sensors one step away.</p>
+      <div class="ga-row"><span class="ga-lab">Rounds</span><input type="range" id="net-k" min="0" max="4" value="1"><b id="net-kv">1</b></div>
+      <div class="ga-row"><span class="ga-lab">Start from</span>
+        <button class="ga-chip" data-s="busiest">Busiest junction</button><button class="ga-chip" data-s="west">West end</button><button class="ga-chip" data-s="east">East end</button>
+      </div>
+      <div id="net-out" class="ga-card">Click any sensor on the map.</div>
+    </section>
+
+    <section class="ga-pane" id="p-lang" hidden>
+      <h2>Read place names in text</h2>
+      <p class="ga-lead">Geo-language AI finds the places mentioned in text and puts them on a map (geoparsing). Edit the text or pick a sample, then press Find places. Names in the lab's gazetteer are matched at once; other capitalised phrases can be looked up in OpenStreetMap.</p>
+      <div class="ga-row"><button class="ga-chip" data-x="ggn">Gurugram news</button><button class="ga-chip" data-x="la">Los Angeles</button><button class="ga-chip" data-x="india">India business</button></div>
+      <textarea id="lang-txt" rows="7" style="width:100%;font:15px/1.5 inherit;font-family:inherit;border:1px solid var(--line);border-radius:9px;padding:10px"></textarea>
+      <div class="ga-row"><button id="lang-run" class="ga-primary">Find places</button><button id="lang-osm" class="ga-ghostbtn">Also look up other names in OpenStreetMap</button></div>
+      <div id="lang-out" class="ga-card"></div>
+    </section>
+
+    <section class="ga-pane" id="p-gen" hidden>
+      <h2>Sharper images: what generative AI must create</h2>
+      <p class="ga-lead">Free satellite images (Sentinel-2) see 10 m per pixel. Aerial images see under 1 m. Super-resolution models generate the missing detail from the coarse image. Slide between the two to see how much must be created.</p>
+      <div class="ga-row"><span class="ga-lab">Blend</span><span class="ga-small">10 m</span><input type="range" id="gen-a" min="0" max="100" value="0"><span class="ga-small">&lt;1 m</span></div>
+      <div class="ga-row"><span class="ga-lab">Go to</span>
+        <button class="ga-chip" data-f="77.104,28.442,16">Golf Course Road</button><button class="ga-chip" data-f="77.0889,28.4950,16">Cyber Hub</button><button class="ga-chip" data-f="77.0700,28.2600,15.5">Sohna warehouses</button><button class="ga-chip" data-f="-118.4973,34.0094,16">Santa Monica Pier</button>
+      </div>
+      <div id="gen-out" class="ga-card">At 10 m, one pixel covers a house plot; at under 1 m, you can count windows and cars. A super-resolution model must invent that detail, so its output is checked against real high-resolution images.</div>
+    </section>
+
+    <section class="ga-pane" id="p-wx" hidden>
+      <h2>AI weather: three forecasts for any point</h2>
+      <p class="ga-lead">Click anywhere on the map. The app fetches the next 7 days from ECMWF's AI model (AIFS) and two physics models (ECMWF IFS and NOAA GFS), live from Open-Meteo. Where the lines agree, the forecast is more certain.</p>
+      <div class="ga-row"><span class="ga-lab">Show</span><div class="ga-seg" id="wx-v"><button data-v="temperature_2m" class="on">Temperature</button><button data-v="precipitation">Rain</button><button data-v="wind_speed_10m">Wind</button></div></div>
+      <div class="ga-row"><span class="ga-lab">Try</span><button class="ga-chip" data-w="77.03,28.46">Gurugram</button><button class="ga-chip" data-w="72.88,19.08">Mumbai</button><button class="ga-chip" data-w="80.27,13.08">Chennai</button><button class="ga-chip" data-w="-118.24,34.05">Los Angeles</button></div>
+      <canvas id="wx-c" class="gm-sc" width="820" height="520"></canvas>
+      <div id="wx-out" class="ga-card">Click a point or a city above.</div>
+    </section>
+  </aside>
+  <div class="ga-mapwrap">
+    <div id="map"></div>
+    <div id="legend" class="ga-legend" hidden></div>
+    <div id="busy" class="ga-busy" hidden>Loading…</div>
+  </div>
+</main>
+<script src="geoai2.js?v=1"></script>
+</body>
+</html>
