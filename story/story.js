@@ -1,11 +1,14 @@
-// Location Lab · Storytelling with data — Mumbai's 24 BMC wards, Census 2011 (via MCGM Public Health Dept); boundaries DataMeet.
-// Every number shown is computed here from story/data/mumbai_wards.geojson (and, in step 12, the Gurugram files in ../data/india/).
+// Location Lab · Storytelling with data — Gurugram business case: where should a café chain open its next 10 outlets?
+// Data: story/data/gurugram_hex.geojson — 1,646 hexagons (about 0.74 km² each) covering Gurugram district.
+//   Buildings, shops and eateries, branded cafés: Overture Maps (release Oct 2026). Built-up land: ESA WorldCover 2021;
+//   newly built 2017–2024. Metro stations and cafés: OpenStreetMap (../data/india/). Every number shown is computed here.
 //
 // URL hash parameters (every view can be reopened exactly from its address):
 //   step=brief|data|rank|rates|compare|relate|map|chart|declutter|bigidea|arc|tell|yourturn
-//   metric=<field>              rank, map   (slum_pct, density_per_km2, female_literacy_pct, homeless_per_10k, literacy_pct, sex_ratio, population)
-//   sort=<field>&dir=asc|desc   data        (table sort)
-//   measure=homeless|slum       rates       (topic)
+//   metric=<field>              rank, map, yourturn (buildings, shops, branded_cafes, osm_cafes, places, built_share,
+//                               new_built_share, shops_per_1000_bldg, cafes_per_100_shops)
+//   sort=<field>                data        (table shows the top 15 hexagons by this column)
+//   measure=cafes|shops         rates       (topic)
 //   mode=count|rate             rates
 //   x=<field>&y=<field>         relate      (scatter axes)
 //   method=quantile|equal|jenks map         (equal counts, equal steps, natural breaks)
@@ -14,56 +17,62 @@
 //   stage=1..5                  declutter
 //   insight=0..4                bigidea, arc
 //   frame=1..6                  tell
+//   brief=bank|pharmacy|qcommerce|ev   yourturn
 //   view=map|template           yourturn
-//   clean=1                     hides header and side panel (presentation and screenshots)
+//   cafes=1                     yourturn: also show the 459 OpenStreetMap cafés and restaurants
+//   clean=1                     tell: hides header and side panel (presentation and screenshots)
 // window.__storyReady becomes true once the step has drawn and the map is idle.
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const STEPS = [['brief', 'The brief'], ['data', 'Know the data'], ['rank', 'Rank it'], ['rates', 'Counts or rates'], ['compare', 'Benchmark'], ['relate', 'Relationships'], ['map', 'Map classes'], ['chart', 'Pick the chart'], ['declutter', 'Declutter'], ['bigidea', 'Big Idea'], ['arc', 'Story arc'], ['tell', 'Tell it'], ['yourturn', 'Your turn']];
-const SRC = 'Source: Census 2011 via MCGM (BMC Public Health Department); ward boundaries DataMeet. All figures are from 2011.';
-const SRC_G = 'Source: OpenStreetMap contributors (cafés, restaurants, metro stations). Distance: straight line to the nearest station.';
+const SRC = 'Source: Overture Maps buildings and places (October 2026); metro stations OpenStreetMap. One hexagon ≈ 0.74 km².';
+const SRC_W = 'Source: Overture Maps (October 2026); built-up land ESA WorldCover 2021, change 2017–2024; metro OpenStreetMap. One hexagon ≈ 0.74 km².';
+const SRC_O = 'Source: OpenStreetMap contributors (cafés, restaurants, metro stations); Overture Maps (October 2026). One hexagon ≈ 0.74 km².';
+const CRED = 'Data: Overture Maps (buildings, places) · metro stations OpenStreetMap';
+const CRED_W = 'Data: Overture Maps · ESA WorldCover 2021 · metro stations OpenStreetMap';
+const CRED_O = 'Data: OpenStreetMap (cafés, metro stations) · Overture Maps';
 const FONT = '"Segoe UI",Calibri,Arial,sans-serif';
-const NAVY = '#1e3063', RED = '#c00000', GREY = '#c9ced6', INK = '#14213d', MUTE = '#4a5568';
-const SEQ = ['#f2f4f9', '#d9e0ee', '#bccae2', '#9db1d4', '#7f97c4', '#6280b4', '#4a69a2'];
-const st = { step: 'brief', metric: 'slum_pct', sort: 'slum_pct', dir: 'desc', measure: 'homeless', mode: 'count', x: 'slum_pct', y: 'female_literacy_pct', method: 'quantile', classes: 5, chart: 'pie', stage: 1, insight: 0, frame: 1, view: 'map', clean: false };
-const B = { aud: 'Municipal Commissioner, Brihanmumbai Municipal Corporation', dec: 'Where to spend the next ₹500 crore of basic-services money (water, toilets, schools, health posts)', ask: '' };
-let geo = null, W = [], N = 0, map = null, T = {}, BB = null, gur = null, popup = null, hoverKey = null, ins = [];
+const NAVY = '#1e3063', RED = '#c00000', GREY = '#c9ced6', INK = '#14213d', MUTE = '#4a5568', ZERO = '#f1f2f5';
+const SEQ = ['#eef1f7', '#d9e0ee', '#bccae2', '#9db1d4', '#7f97c4', '#6280b4', '#4a69a2'];
+const ZONES = ['Within 1 km of metro', '1 to 3 km from metro', 'More than 3 km from metro'];
+const ZC = { 'Within 1 km of metro': '#4a69a2', '1 to 3 km from metro': '#9db1d4', 'More than 3 km from metro': '#e6eaf2' };
+const st = { step: 'brief', metric: 'branded_cafes', sort: 'buildings', measure: 'cafes', mode: 'count', x: 'buildings', y: 'shops', method: 'quantile', classes: 5, chart: 'pie', stage: 1, insight: 3, frame: 1, brief: 'bank', view: 'map', cafes: false, clean: false };
+const B = { aud: 'CEO and board of a national café chain', dec: 'Where in Gurugram to open the next 10 outlets', ask: '' };
+let geo = null, W = [], N = 0, map = null, T = {}, BB = null, gur = null, popup = null, hoverKey = null, ins = [], attr = null, NAME = [];
 
 // ---------- formatting ----------
 const inr = v => Math.round(v).toLocaleString('en-IN');
 const lakh = v => v >= 1e7 ? (v / 1e7).toFixed(2) + ' crore' : (v / 1e5).toFixed(1) + ' lakh';
 const p1 = v => v.toFixed(1) + '%';
+const p0 = v => Math.round(v) + '%';
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const DIRS = { E: 'East', W: 'West', N: 'North', S: 'South', C: 'Central' };
-const code = r => { const [a, b] = r.ward.split('/'); return b ? a + '/' + DIRS[b] : a; };
-const locs = (r, n) => r.localities.split(', ').slice(0, n);
-const sname = r => `${code(r)} (${locs(r, 2).join(', ')})`;
-const fname = r => `${code(r)} (${r.localities})`;
-const plain = r => { const l = locs(r, 2); return l.length > 1 && !l[1].includes(' ') ? l.join('–') : l[0]; };
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 const listJoin = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
-function niceFrac(s) { for (let d = 2; d <= 10; d++) { const n = Math.round(s * d); if (n > 0 && Math.abs(n / d - s) < 0.015) return [n, d]; } return null; }
+const hname = i => NAME[i];                       // "Sector 25A · hexagon 1"
+const aname = i => cap(W[i].area);                // approximate area, no hexagon number
+const short = i => { const a = W[i].area.replace(/^near /, ''), m = a.match(/^([\d.]+) km from .+ metro$/); return m ? `${m[1]} km from a metro` : cap(a); };
 
 // ---------- measures ----------
-const agg = rows => { const t = {}; ['population', 'slum_pop', 'homeless', 'households', 'area_km2', 'literates', 'literates_f', 'females', 'males', 'girls_0_6', 'boys_0_6', 'children_0_6'].forEach(k => t[k] = rows.reduce((s, r) => s + r[k], 0)); t.n = rows.length; return t; };
+const agg = rows => { const t = { n: rows.length }; ['buildings', 'shops', 'places', 'branded_cafes', 'osm_cafes'].forEach(k => t[k] = rows.reduce((s, r) => s + r[k], 0)); return t; };
+const mean = k => W.reduce((s, r) => s + (r[k] || 0), 0) / N;
 const M = {
-  slum_pct: { l: 'Share of people living in slums', s: 'slum share', f: p1, c: t => t.slum_pop / t.population * 100 },
-  density_per_km2: { l: 'People per square kilometre', s: 'people per km²', f: inr, c: t => t.population / t.area_km2 },
-  female_literacy_pct: { l: 'Female literacy (women aged 7 and over who can read and write)', s: 'female literacy', f: p1, c: t => t.literates_f / (t.females - t.girls_0_6) * 100 },
-  homeless_per_10k: { l: 'Homeless people per 10,000 residents', s: 'homeless per 10,000', f: v => v.toFixed(1), c: t => t.homeless / t.population * 1e4 },
-  literacy_pct: { l: 'Literacy (people aged 7 and over who can read and write)', s: 'literacy', f: p1, c: t => t.literates / (t.population - t.children_0_6) * 100 },
-  sex_ratio: { l: 'Females per 1,000 males', s: 'females per 1,000 males', f: inr, c: t => t.females / t.males * 1000 },
-  child_sex_ratio: { l: 'Girls per 1,000 boys (aged 0 to 6)', s: 'girls per 1,000 boys', f: inr, c: t => t.girls_0_6 / t.boys_0_6 * 1000 },
-  hh_size: { l: 'People per household', s: 'household size', f: v => v.toFixed(2), c: t => t.population / t.households },
-  population: { l: 'Population', s: 'population', f: inr, c: t => t.population / t.n, cn: 'Average ward' },
-  slum_pop: { l: 'People living in slums', s: 'people in slums', f: inr, c: t => t.slum_pop / t.n, cn: 'Average ward' },
-  homeless: { l: 'Homeless people', s: 'homeless people', f: inr, c: t => t.homeless / t.n, cn: 'Average ward' },
+  branded_cafes: { l: 'Branded cafés (seven national chains)', s: 'branded cafés', f: inr, c: () => mean('branded_cafes'), fa: v => v.toFixed(2), cn: 'Average hexagon', src: SRC, cr: CRED },
+  shops: { l: 'Shops and eateries', s: 'shops and eateries', f: inr, c: () => mean('shops'), fa: v => v.toFixed(1), cn: 'Average hexagon', src: SRC, cr: CRED },
+  buildings: { l: 'Buildings', s: 'buildings', f: inr, c: () => mean('buildings'), cn: 'Average hexagon', src: SRC, cr: CRED },
+  places: { l: 'All places (shops, offices, services)', s: 'places', f: inr, c: () => mean('places'), cn: 'Average hexagon', src: SRC, cr: CRED },
+  osm_cafes: { l: 'Cafés and restaurants (OpenStreetMap)', s: 'cafés and restaurants', f: inr, c: () => mean('osm_cafes'), fa: v => v.toFixed(2), cn: 'Average hexagon', src: SRC_O, cr: CRED_O },
+  built_share: { l: 'Built-up share of the land (%)', s: 'built-up share', f: p1, c: () => mean('built_share'), cn: 'Average hexagon', src: SRC_W, cr: CRED_W },
+  new_built_share: { l: 'Land newly built 2017 to 2024 (%)', s: 'newly built share', f: p1, c: () => mean('new_built_share'), cn: 'Average hexagon', src: SRC_W, cr: CRED_W },
+  metro_km: { l: 'Distance to the nearest metro station (km)', s: 'distance to metro', f: v => v.toFixed(1) + ' km', c: () => mean('metro_km'), cn: 'Average hexagon', src: SRC, cr: CRED },
+  shops_per_1000_bldg: { l: 'Shops per 1,000 buildings', s: 'shops per 1,000 buildings', f: v => v.toFixed(1), c: () => T.shops / T.buildings * 1000, cn: 'Gurugram overall', src: SRC, cr: CRED, note: 'hexagons with 50+ buildings' },
+  cafes_per_100_shops: { l: 'Branded cafés per 100 shops', s: 'branded cafés per 100 shops', f: v => v.toFixed(2), c: () => T.branded_cafes / T.shops * 100, cn: 'Gurugram overall', src: SRC, cr: CRED, note: 'hexagons with 20+ shops' },
 };
-const RANK_M = ['slum_pct', 'density_per_km2', 'female_literacy_pct', 'homeless_per_10k', 'literacy_pct', 'sex_ratio', 'population'];
-const REL_M = ['slum_pct', 'female_literacy_pct', 'literacy_pct', 'density_per_km2', 'homeless_per_10k', 'sex_ratio', 'child_sex_ratio', 'hh_size'];
-const city = k => M[k].c(T);
-const cityName = k => M[k].cn || 'Mumbai average';
+const RANK_M = ['branded_cafes', 'shops', 'buildings', 'osm_cafes', 'new_built_share', 'built_share', 'shops_per_1000_bldg', 'cafes_per_100_shops'];
+const REL_M = ['buildings', 'shops', 'branded_cafes', 'osm_cafes', 'places', 'built_share', 'new_built_share', 'metro_km'];
+const city = k => M[k].c();
+const cityF = k => (M[k].fa || M[k].f)(city(k));
 const vals = k => W.map(r => r[k]);
-const order = (k, desc = true) => W.map((r, i) => i).sort((a, b) => desc ? W[b][k] - W[a][k] : W[a][k] - W[b][k]);
-
+const valid = k => W.map((r, i) => i).filter(i => W[i][k] != null);
+const order = (k, desc = true, ids) => (ids || valid(k)).sort((a, b) => desc ? W[b][k] - W[a][k] || a - b : W[a][k] - W[b][k] || a - b);
 // ---------- classification ----------
 function jenks(data, k) {
   const d = [...data].sort((a, b) => a - b), n = d.length;
@@ -93,13 +102,11 @@ function classify(v, method, k) {
 }
 const pal = k => Array.from({ length: k }, (_, j) => SEQ[Math.round(j * (SEQ.length - 1) / (k - 1))]);
 const METH = { quantile: 'Equal counts (quantiles)', equal: 'Equal steps (equal intervals)', jenks: 'Natural breaks (Jenks)' };
-
 // ---------- stats ----------
 function corr(x, y) { const n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; } return { r: sxy / Math.sqrt(sxx * syy), b: sxy / sxx, a: my - sxy / sxx * mx }; }
 const strength = r => { const a = Math.abs(r); return a < 0.2 ? 'almost no' : a < 0.4 ? 'a weak' : a < 0.7 ? 'a moderate' : 'a strong'; };
 const rtxt = r => (r < 0 ? '−' : '') + Math.abs(r).toFixed(2);
 function hav(a, b) { const R = 6371008.8, t = Math.PI / 180, p1 = a[1] * t, p2 = b[1] * t, dp = p2 - p1, dl = (b[0] - a[0]) * t; const x = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
-
 // ---------- SVG helpers ----------
 const cvs = document.createElement('canvas').getContext('2d');
 function tw(s, size, weight = 400) { cvs.font = `${weight} ${size}px ${FONT}`; return cvs.measureText(s).width; }
@@ -113,12 +120,9 @@ function header(w, title, sub, x = 28, y = 40, tsize = 26) {
 }
 function keyRow(x, y, items, size = 15) { let s = '', xx = x; items.forEach(([c, l, kind]) => { if (kind === 'line') s += `<line x1="${xx}" y1="${y - 5}" x2="${xx + 22}" y2="${y - 5}" stroke="${c}" stroke-width="2.5" stroke-dasharray="6 4"/>`; else if (kind === 'dot') s += `<circle cx="${xx + 9}" cy="${y - 5}" r="8" fill="${c}"/>`; else s += `<rect x="${xx}" y="${y - 13}" width="22" height="15" rx="3" fill="${c}" stroke="rgba(0,0,0,.25)"/>`; s += tx(xx + 30, y, l, { size }); xx += 30 + tw(l, size) + 26; }); return s; }
 const footer = (w, h, src = SRC, x = 28) => { const ls = wrap(src, 14, w - x - 20); return ls.map((l, j) => tx(x, h - 14 - (ls.length - 1 - j) * 18, l, { size: 14, fill: MUTE })).join(''); };
-const PCT = ['slum_pct', 'female_literacy_pct', 'literacy_pct'];
-const tickF = (k, t) => PCT.includes(k) ? (Number.isInteger(t) ? t : t.toFixed(1)) + '%' : Number.isInteger(t) ? inr(t) : t.toFixed(1);
 function niceMax(v) { const p = 10 ** Math.floor(Math.log10(v)), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; }
 function ticks(lo, hi, n = 5) { const step = niceMax((hi - lo) / n), out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10)); return out; }
 const box = () => { const el = $('#chart'); return [el.clientWidth, el.clientHeight]; };
-
 // horizontal bar chart used by several steps
 function hbar(o) {
   const [w, h] = o.size || box(); let s = svgOpen(w, h);
@@ -126,60 +130,74 @@ function hbar(o) {
   if (o.subHTML) { s += `<foreignObject x="20" y="${y - 22}" width="${w - 40}" height="44"><div xmlns="http://www.w3.org/1999/xhtml" class="st-verdict" style="margin:0">${o.subHTML}</div></foreignObject>`; y += 30; }
   if (o.key) { s += keyRow(28, y + 8, o.key); y += 34; }
   const top = y + (o.avg ? 26 : 6), bottom = 64, n = o.rows.length, rowH = (h - top - bottom) / n, fs = Math.max(14, Math.min(17, rowH * 0.56));
-  const labW = Math.max(...o.rows.map(r => tw(r.label, fs, r.bold ? 700 : 400))) + 14, valW = Math.max(...o.rows.map(r => tw(o.fmt(r.v), fs, 700))) + 16;
+  let labW = Math.max(...o.rows.map(r => tw(r.label, fs, r.bold ? 700 : 400))) + 14; const valW = Math.max(...o.rows.map(r => tw(o.fmt(r.v), fs, 700))) + 16;
+  let lfs = fs; if (labW > w * 0.5) { lfs = Math.max(13.5, fs * (w * 0.5) / labW); labW = w * 0.5 + 14; }
   const x0 = 28 + labW, bw = w - x0 - valW - 30 - (o.dots ? 12 : 0), mx = o.max || Math.max(...o.rows.map(r => r.v), o.avg ? o.avg.v : 0), sx = v => v / mx * bw;
   if (o.avg) { const ax = x0 + sx(o.avg.v); s += `<line x1="${ax}" y1="${top - 8}" x2="${ax}" y2="${top + n * rowH}" stroke="${INK}" stroke-width="2" stroke-dasharray="6 4"/>` + tx(ax, top - 12, o.avg.label, { size: 15, weight: 700, anchor: ax > w * 0.7 ? 'end' : 'middle' }); }
   o.rows.forEach((r, k) => {
     const yy = top + k * rowH, th = rowH * 0.7;
-    s += `<g data-w="${r.i}">` + tx(x0 - 10, yy + rowH / 2 + fs * 0.35, r.label, { size: fs, anchor: 'end', weight: r.bold ? 700 : 400 }) +
+    s += `<g data-w="${r.i}">` + tx(x0 - 10, yy + rowH / 2 + fs * 0.35, r.label, { size: lfs, anchor: 'end', weight: r.bold ? 700 : 400 }) +
       (o.dots ? `<line x1="${x0}" y1="${yy + rowH / 2}" x2="${x0 + sx(r.v)}" y2="${yy + rowH / 2}" stroke="#d5dae2" stroke-width="2"/><circle cx="${x0 + sx(r.v)}" cy="${yy + rowH / 2}" r="${Math.min(9, th / 2).toFixed(1)}" fill="${r.col}"/>` : `<rect x="${x0}" y="${(yy + (rowH - th) / 2).toFixed(1)}" width="${Math.max(1, sx(r.v)).toFixed(1)}" height="${th.toFixed(1)}" fill="${r.col}" rx="2"/>`) +
       tx(x0 + sx(r.v) + (o.dots ? 14 : 6), yy + rowH / 2 + fs * 0.35, o.fmt(r.v), { size: fs, weight: r.bold ? 700 : 400, extra: ' paint-order="stroke" stroke="#fff" stroke-width="4"' }) + '</g>';
   });
   s += footer(w, h, o.src) + '</svg>';
   return s;
 }
-function svgMap(w, h, fill, stroke, pad = 6, sw = 0.8) {
-  const [x0, y0, x1, y1] = BB, k = Math.cos(19.07 * Math.PI / 180), sc = Math.min((w - 2 * pad) / ((x1 - x0) * k), (h - 2 * pad) / (y1 - y0));
+
+const tickF = (k, t) => /share|pct/.test(k) ? (Number.isInteger(t) ? t : t.toFixed(1)) + '%' : Number.isInteger(t) ? inr(t) : t.toFixed(1);
+function svgMap(w, h, fill, stroke, pad = 6, sw = 0.3) {
+  const [x0, y0, x1, y1] = BB, k = Math.cos(28.37 * Math.PI / 180), sc = Math.min((w - 2 * pad) / ((x1 - x0) * k), (h - 2 * pad) / (y1 - y0));
   const ox = (w - (x1 - x0) * k * sc) / 2, oy = (h - (y1 - y0) * sc) / 2, P = c => `${(ox + (c[0] - x0) * k * sc).toFixed(1)},${(oy + (y1 - c[1]) * sc).toFixed(1)}`;
-  return geo.features.map((f, i) => { const g = f.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates; const d = polys.map(p => p.map(r => 'M' + r.map(P).join('L') + 'Z').join('')).join(''); return `<path d="${d}" fill="${fill(i)}" stroke="${stroke ? stroke(i) : '#7a8599'}" stroke-width="${sw}"/>`; }).join('');
+  return geo.features.map((f, i) => `<path d="M${f.geometry.coordinates[0].map(P).join('L')}Z" fill="${fill(i)}" stroke="${stroke ? stroke(i) : fill(i)}" stroke-width="${sw}"/>`).join('');
 }
 
 // ---------- map ----------
 const fc = feats => ({ type: 'FeatureCollection', features: feats });
-function paint(colFn, opFn) { geo.features.forEach((f, i) => { f.properties.col = colFn(i); f.properties.op = opFn ? opFn(i) : 0.85; }); map.getSource('w').setData(geo); }
-function setHL(ids, color = RED, width = 4) { map.getSource('hl').setData(fc(ids.map(i => geo.features[i]))); map.setPaintProperty('hl', 'line-color', color); map.setPaintProperty('hl', 'line-width', width); }
-function setLabels(fn) { map.getSource('labs').setData(fc(W.map((r, i) => { const t = fn ? fn(i) : null; return { type: 'Feature', properties: { lab: t ? t[0] : '', tc: t ? t[1] || INK : INK, pri: t ? t[2] || 10 : 10 }, geometry: { type: 'Point', coordinates: [r.lon, r.lat] } }; }))); }
-const lab2 = i => `${code(W[i])}\n${locs(W[i], 1)[0]}`;
+function paint(colFn, opFn) { geo.features.forEach((f, i) => { f.properties.col = colFn(i); f.properties.op = opFn ? opFn(i) : 0.82; }); map.getSource('w').setData(geo); }
+function setHL(ids, color = RED, width = 3) { map.getSource('hl').setData(fc(ids.map(i => geo.features[i]))); map.setPaintProperty('hl', 'line-color', color); map.setPaintProperty('hl', 'line-width', width); }
+function setLabels(ids, color = INK, txt = short) { ids = ids.filter((i, q, a) => a.findIndex(j => txt(j) === txt(i)) === q); map.getSource('labs').setData(fc(ids.map((i, q) => ({ type: 'Feature', properties: { lab: txt(i), tc: typeof color === 'function' ? color(i) : color, pri: q }, geometry: { type: 'Point', coordinates: [W[i].lon, W[i].lat] } })))); }
 function setCircles(feats) { map.getSource('pc').setData(fc(feats)); }
-function circlesFor(k, maxR, colFn) { const mx = Math.max(...vals(k)); return W.map((r, i) => ({ type: 'Feature', properties: { r: maxR * Math.sqrt(r[k] / mx), c: colFn(i) }, geometry: { type: 'Point', coordinates: [r.lon, r.lat] } })); }
-function circleLegend(k, maxR, title, col = NAVY) { const mx = Math.max(...vals(k)), ex = [niceMax(mx) / 5, niceMax(mx) / 2].map(v => v > mx ? mx : v); return `<b>${title}</b>` + ex.map(v => { const d = 2 * maxR * Math.sqrt(v / mx); return `<div class="sw"><i class="ring" style="width:${d.toFixed(0)}px;height:${d.toFixed(0)}px;background:${col};opacity:.55"></i>${v >= 1e5 ? lakh(v) : inr(v)} people</div>`; }).join(''); }
-function legend(html, src = SRC) { const L = $('#legend'); if (!html) { L.hidden = true; return; } L.innerHTML = html + `<div class="src">${src}</div>`; L.hidden = false; }
+function circlesFor(k, maxR, colFn, ids) { const mx = Math.max(...vals(k)); return (ids || W.map((r, i) => i)).filter(i => W[i][k] > 0).sort((a, b) => W[b][k] - W[a][k]).map(i => ({ type: 'Feature', properties: { r: Math.max(3, maxR * Math.sqrt(W[i][k] / mx)), c: colFn(i) }, geometry: { type: 'Point', coordinates: [W[i].lon, W[i].lat] } })); }
+function circleLegend(k, maxR, title, col = NAVY) { const mx = Math.max(...vals(k)); const ex = [...new Set([Math.max(1, Math.round(mx / 5)), Math.round(mx / 2), mx])]; return `<b>${title}</b>` + ex.map(v => { const d = Math.max(6, 2 * maxR * Math.sqrt(v / mx)); return `<div class="sw"><i class="ring" style="width:${d.toFixed(0)}px;height:${d.toFixed(0)}px;background:${col};opacity:.55"></i>${inr(v)} per hexagon</div>`; }).join(''); }
+function legend(html, src = SRC) { const L = $('#legend'); if (!html) { L.hidden = true; return; } L.innerHTML = html + METRO_KEY + `<div class="src">${src}</div>`; L.hidden = false; }
+const METRO_KEY = `<div class="sw"><i class="ring" style="background:#fff;border:3px solid ${NAVY};width:15px;height:15px"></i>Metro station</div>`;
 const sw = (c, l, cls = '') => `<div class="sw"><i class="${cls}" style="background:${c}"></i>${l}</div>`;
-function wardLayers(on) { ['w', 'w-line', 'hl', 'hl2', 'hov', 'labs', 'pc'].forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')); ['gc', 'gm'].forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'none' : 'visible')); }
+function credits(txt) { if (attr) map.removeControl(attr); attr = new maplibregl.AttributionControl({ compact: false, customAttribution: txt }); map.addControl(attr, 'bottom-right'); }
 let pendingFit = null;
 function fit(ids, padding = 30, dur = 0) { pendingFit = [ids, padding, dur]; }
 function doFit() {
   if (!pendingFit) return; let [ids, padding, dur] = pendingFit; pendingFit = null;
-  if (typeof padding === 'number') { padding = { top: padding, right: padding + 30, bottom: padding, left: padding }; const L = $('#legend'); if (!L.hidden) padding.bottom = L.offsetHeight + 40; }
-  fitRaw(ids, padding, dur);
+  if (typeof padding === 'number') { padding = { top: padding, right: padding + 30, bottom: padding, left: padding }; const L = $('#legend'); if (!L.hidden) padding.bottom = Math.min(L.offsetHeight + 40, map.getContainer().clientHeight * 0.55); }
+  let b = null; (ids && ids.length ? ids : W.map((r, i) => i)).forEach(i => geo.features[i].geometry.coordinates[0].forEach(c => { if (!b) b = [c[0], c[1], c[0], c[1]]; b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]; }));
+  map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding, duration: dur, maxZoom: 13.2 });
 }
-function fitRaw(ids, padding, dur) { let b = null; (ids || W.map((r, i) => i)).forEach(i => { const f = geo.features[i].geometry; const polys = f.type === 'Polygon' ? [f.coordinates] : f.coordinates; polys.forEach(p => p[0].forEach(c => { if (!b) b = [c[0], c[1], c[0], c[1]]; b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]; })); }); map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding, duration: dur }); }
-function choropleth(k, method = 'quantile', ncl = 5) { const v = vals(k), c = classify(v, method, ncl), P = pal(ncl); paint(i => P[c.cls[i]]); return { c, P }; }
-function choroLegend(k, c, P, title) { return `<b>${title || M[k].l}</b>` + [...c.ranges.keys()].reverse().map(j => sw(P[j], c.ranges[j] ? `${M[k].f(c.ranges[j][0])} to ${M[k].f(c.ranges[j][1])} · ${c.groups[j].length} ward${c.groups[j].length === 1 ? '' : 's'}` : 'no wards')).join(''); }
+function chor(k, method = 'jenks', K = 5) {
+  const ids = valid(k), zeros = ids.filter(i => W[i][k] === 0), zsep = zeros.length / ids.length >= 0.2, cl = zsep ? ids.filter(i => W[i][k] > 0) : ids;
+  const c = classify(cl.map(i => W[i][k]), method, K), cls = Array(N).fill(-2); if (zsep) zeros.forEach(i => cls[i] = -1); cl.forEach((i, j) => cls[i] = c.cls[j]);
+  return { cls, groups: c.groups.map(g => g.map(j => cl[j])), ranges: c.ranges, K, P: pal(K), nz: zsep ? zeros.length : 0, nnull: N - ids.length };
+}
+function paintChor(C, hiOp = 0.82) { paint(i => C.cls[i] >= 0 ? C.P[C.cls[i]] : ZERO, i => C.cls[i] >= 0 ? hiOp : 0.45); }
+const rng = (f, r) => f(r[0]) === f(r[1]) ? f(r[0]) : `${f(r[0])} to ${f(r[1])}`;
+const hx = n => `${inr(n)} hexagon${n === 1 ? '' : 's'}`;
+function chorLegend(k, C, title) {
+  const f = M[k].f; return `<b>${title || M[k].l}</b>` + [...C.ranges.keys()].reverse().map(j => sw(C.P[j], C.ranges[j] ? `${rng(f, C.ranges[j])} · ${hx(C.groups[j].length)}` : 'no hexagons')).join('') +
+    (C.nz ? sw(ZERO, `None · ${hx(C.nz)}`) : '') + (C.nnull ? sw(ZERO, `Too few to compute · ${hx(C.nnull)}`) : '');
+}
 
 // ---------- layout + routing ----------
 function setLayout(l, cw = '58%') { const s = $('#stage'); s.dataset.layout = l; s.style.setProperty('--cw', cw); $('#chart').innerHTML = ''; if (map) map.resize(); }
-const PARAMS = { brief: [], data: ['sort', 'dir'], rank: ['metric'], rates: ['measure', 'mode'], compare: [], relate: ['x', 'y'], map: ['metric', 'method', 'classes'], chart: ['chart'], declutter: ['stage'], bigidea: ['insight'], arc: ['insight'], tell: ['frame'], yourturn: ['view'] };
+const PARAMS = { brief: [], data: ['sort'], rank: ['metric'], rates: ['measure', 'mode'], compare: [], relate: ['x', 'y'], map: ['metric', 'method', 'classes'], chart: ['chart'], declutter: ['stage'], bigidea: ['insight'], arc: ['insight'], tell: ['frame'], yourturn: ['brief', 'metric', 'view', 'cafes'] };
 function readHash() {
   const q = new URLSearchParams(location.hash.slice(1));
   if (q.has('step') && PARAMS[q.get('step')]) st.step = q.get('step');
-  ['metric', 'sort', 'dir', 'measure', 'mode', 'x', 'y', 'method', 'chart', 'view'].forEach(k => { if (q.has(k)) st[k] = q.get(k); });
+  ['metric', 'sort', 'measure', 'mode', 'x', 'y', 'method', 'chart', 'view', 'brief'].forEach(k => { if (q.has(k)) st[k] = q.get(k); });
   ['classes', 'stage', 'insight', 'frame'].forEach(k => { if (q.has(k)) st[k] = +q.get(k); });
-  if (!M[st.metric]) st.metric = 'slum_pct';
+  if (q.has('cafes')) st.cafes = q.get('cafes') === '1';
+  if (!M[st.metric]) st.metric = 'branded_cafes'; if (!BRIEFS[st.brief]) st.brief = 'bank';
   st.classes = Math.max(3, Math.min(7, st.classes || 5)); st.stage = Math.max(1, Math.min(5, st.stage || 1)); st.frame = Math.max(1, Math.min(6, st.frame || 1)); st.insight = Math.max(0, Math.min(4, st.insight || 0));
-  st.clean = q.get('clean') === '1'; document.body.classList.toggle('clean', st.clean && st.step === 'tell');
+  st.clean = q.get('clean') === '1';
 }
-function writeHash() { const q = new URLSearchParams(); q.set('step', st.step); PARAMS[st.step].forEach(k => q.set(k, st[k])); if (st.clean && st.step === 'tell') q.set('clean', '1'); history.replaceState(null, '', '#' + q.toString()); }
+function writeHash() { const q = new URLSearchParams(); q.set('step', st.step); PARAMS[st.step].forEach(k => q.set(k, k === 'cafes' ? (st.cafes ? 1 : 0) : st[k])); if (st.clean && st.step === 'tell') q.set('clean', '1'); history.replaceState(null, '', '#' + q.toString()); }
 let tok = 0;
 function settle() {
   const t = ++tok; window.__storyReady = false;
@@ -191,368 +209,362 @@ function show(step) {
   $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === step));
   $$('.ga-pane').forEach(p => p.hidden = p.id !== 'p-' + step);
   legend(null); $('#tellcard').hidden = true; if (popup) popup.remove(); hoverKey = null;
-  wardLayers(true); setHL([]); map.getSource('hl2').setData(fc([])); setCircles([]); setLabels(null); map.getSource('hov').setData(fc([]));
-  pendingFit = null; R[step](); map.resize(); doFit(); writeHash(); settle();
+  setHL([]); setCircles([]); setLabels([]); map.getSource('hov').setData(fc([])); map.setLayoutProperty('gc', 'visibility', 'none'); map.setLayoutProperty('w', 'visibility', 'visible');
+  pendingFit = null; credits(CRED); R[step](); map.resize(); doFit(); writeHash(); settle();
 }
 function segOn(id, v) { $$(`#${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v == v)); }
 function seg(id, key, num) { $$(`#${id} button`).forEach(b => b.onclick = () => { st[key] = num ? +b.dataset.v : b.dataset.v; show(st.step); }); }
-
-// ---------- hover linking ----------
 function hover(i) {
   map.getSource('hov').setData(fc(i == null ? [] : [geo.features[i]]));
   $$('#chart [data-w]').forEach(e => e.classList.toggle('hov', e.dataset.w == i));
   $$('#chart g[data-w]').forEach(e => e.style.opacity = i == null || e.dataset.w == i ? 1 : 0.45);
 }
+function bindHover() { $$('#chart [data-w]').forEach(g => { g.onmouseenter = () => hover(+g.dataset.w); g.onmouseleave = () => hover(null); }); }
 
 // ================= steps =================
 const R = {};
-
 R.brief = () => {
-  setLayout('split', '52%');
+  setLayout('split', '46%');
   $('#b-aud').value = B.aud; $('#b-dec').value = B.dec; $('#b-ask').value = B.ask;
-  paint(() => '#dfe5f1', () => 0.75); fit(null, 30);
+  paint(() => '#dfe5f1', () => 0.6); fit(null, 24); credits(CRED);
   $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">The brief</div><div class="st-h2">Three questions to answer before you open the data</div>
    <div class="st-cards">
     <div class="st-card"><h4>1 · Audience: who will listen?</h4><div class="big">${esc(B.aud)}</div></div>
     <div class="st-card"><h4>2 · Decision: what must they decide?</h4><div class="big">${esc(B.dec)}</div></div>
     <div class="st-card acc"><h4>3 · Ask: what do you want them to do?</h4><div class="big">${esc(B.ask)}</div></div>
-   </div><div class="st-src">The map shows Mumbai's 24 municipal wards. The data come next, in step 1.<br>${SRC}</div></div>`;
-  legend(`<b>Mumbai's 24 municipal wards</b>` + sw('#dfe5f1', 'One ward (run by the BMC as a unit)'));
+   </div><div class="st-src">The map shows Gurugram district cut into ${inr(N)} equal hexagons. The data come next, in step 1.<br>${SRC}</div></div>`;
+  legend(`<b>Gurugram district</b>` + sw('#dfe5f1', `One hexagon, about 0.74 km² (${inr(N)} in all)`));
 };
 
+const TCOLS = [['area', 'Hexagon (approximate area)'], ['metro_km', 'Metro (km)', v => v.toFixed(1)], ['buildings', 'Buildings', inr], ['shops', 'Shops and eateries', inr], ['branded_cafes', 'Branded cafés', inr], ['built_share', 'Built-up land', p1], ['new_built_share', 'Newly built 2017–24', p1]];
 R.data = () => {
-  setLayout('split', '74%');
-  const cols = [['ward', 'Ward and localities'], ['zone', 'Part of city'], ['population', 'Population', inr], ['slum_pct', 'Slum share', p1], ['density_per_km2', 'People per km²', inr], ['homeless_per_10k', 'Homeless per 10,000', v => v.toFixed(1)], ['female_literacy_pct', 'Female literacy', p1]];
-  const idx = W.map((r, i) => i).sort((a, b) => { const x = W[a][st.sort], y = W[b][st.sort]; const c = typeof x === 'string' ? x.localeCompare(y) : x - y; return st.dir === 'asc' ? c : -c; });
-  const sname2 = r => `<b>${esc(code(r))}</b> <small>${esc(locs(r, 2).join(', '))}</small>`;
-  $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">One row = one ward: 24 rows, Census 2011</div><div class="st-h2">Sorted by ${esc(cols.find(c => c[0] === st.sort)?.[1] || st.sort).toLowerCase()}, ${st.dir === 'asc' ? 'lowest' : 'highest'} first. Click a heading to sort.</div>
-  <table class="st-tbl"><thead><tr>${cols.map(c => `<th data-k="${c[0]}" class="${c[2] ? 'n' : ''} ${c[0] === st.sort ? 'on' : ''}">${c[1]}${c[0] === st.sort ? (st.dir === 'asc' ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
-  <tbody>${idx.map(i => `<tr data-w="${i}">${cols.map(c => c[0] === 'ward' ? `<td>${sname2(W[i])}</td>` : `<td class="${c[2] ? 'n' : ''}">${c[2] ? c[2](W[i][c[0]]) : esc(W[i][c[0]])}</td>`).join('')}</tr>`).join('')}
-  <tr style="font-weight:700"><td>Mumbai (all 24 wards)</td><td></td><td class="n">${inr(T.population)}</td><td class="n">${p1(city('slum_pct'))}</td><td class="n">${inr(city('density_per_km2'))}</td><td class="n">${city('homeless_per_10k').toFixed(1)}</td><td class="n">${p1(city('female_literacy_pct'))}</td></tr></tbody></table>
-  <div class="st-src">${SRC}</div></div>`;
-  $$('#chart th').forEach(th => th.onclick = () => { const k = th.dataset.k === 'ward' ? 'ward' : th.dataset.k; if (st.sort === k) st.dir = st.dir === 'asc' ? 'desc' : 'asc'; else { st.sort = k; st.dir = typeof W[0][k] === 'string' ? 'asc' : 'desc'; } show('data'); });
-  $$('#chart tr[data-w]').forEach(tr => { tr.onmouseenter = () => hover(+tr.dataset.w); tr.onmouseleave = () => hover(null); });
-  // fit the table: shrink row padding if needed
-  const p = $('#chart .st-panel'), tb = $('#chart .st-tbl'); let pad = 3.5; while (p.scrollHeight > p.clientHeight + 1 && pad > 0.5) { pad -= 0.5; tb.querySelectorAll('td').forEach(td => td.style.padding = pad + 'px 6px'); }
-  const zc = { 'Island City': '#f2f4f9', 'Western Suburbs': '#bccae2', 'Eastern Suburbs': '#7f97c4' };
-  paint(i => zc[W[i].zone], () => 0.8); fit(null, 20); setLabels(i => [lab2(i), INK, 1]); hoverKey = 'population';
-  legend('<b>Three parts of Mumbai</b>' + Object.entries(zc).map(([z, c]) => sw(c, z)).join('') + '<div style="margin-top:4px">Labels: ward and main locality</div>');
-  $('#data-tot').innerHTML = `<h3>The city in one line</h3><b>${inr(T.population)}</b> people (${lakh(T.population)}), <b>${inr(T.households)}</b> households, <b>${T.area_km2.toFixed(1)} km²</b>. <b>${inr(T.slum_pop)}</b> people (${p1(city('slum_pct'))}) lived in slums and <b>${inr(T.homeless)}</b> were homeless.`;
+  setLayout('chart'); const k = TCOLS.some(c => c[0] === st.sort) && st.sort !== 'area' ? st.sort : 'buildings'; const asc = k === 'metro_km';
+  const ix = order(k, !asc).slice(0, 15);
+  $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">One row = one hexagon: ${inr(N)} rows</div><div class="st-h2">The 15 hexagons with the ${asc ? 'shortest distance to a metro station' : 'most ' + (TCOLS.find(c => c[0] === k)[1]).toLowerCase()}. Click a heading to re-rank.</div>
+  <table class="st-tbl st-dt"><thead><tr>${TCOLS.map(c => `<th data-k="${c[0]}" class="${c[2] ? 'n' : ''} ${c[0] === k ? 'on' : ''}">${c[1]}${c[0] === k ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
+  <tbody>${ix.map(i => `<tr data-w="${i}">${TCOLS.map(c => c[0] === 'area' ? `<td style="font-weight:600">${esc(hname(i))}</td>` : `<td class="n">${c[2](W[i][c[0]])}</td>`).join('')}</tr>`).join('')}
+  <tr style="font-weight:700"><td>Gurugram district, ${inr(N)} hexagons</td><td class="n">avg ${city('metro_km').toFixed(1)}</td><td class="n">${inr(T.buildings)}</td><td class="n">${inr(T.shops)}</td><td class="n">${inr(T.branded_cafes)}</td><td class="n">avg ${p1(city('built_share'))}</td><td class="n">avg ${p1(city('new_built_share'))}</td></tr></tbody></table>
+  <div class="st-src">“Hexagon 1, 2 …” number hexagons that share an area name. Area names are approximate. ${SRC_W}</div></div>`;
+  { const p = $('#chart .st-panel'), tb = $('#chart .st-tbl'); let pad = 8; while (p.scrollHeight > p.clientHeight + 1 && pad > 1) { pad -= 1; tb.querySelectorAll('td').forEach(td => td.style.padding = pad + 'px 6px'); } }
+  $$('#chart th').forEach(th => th.onclick = () => { if (th.dataset.k !== 'area') { st.sort = th.dataset.k; show('data'); } });
+  bindHover();
+  $('#data-tot').innerHTML = `<h3>Gurugram in one line</h3><b>${inr(N)}</b> hexagons, <b>${inr(T.buildings)}</b> buildings (${lakh(T.buildings)}), <b>${inr(T.shops)}</b> shops and eateries, <b>${inr(T.branded_cafes)}</b> branded cafés in <b>${W.filter(r => r.branded_cafes > 0).length}</b> hexagons, ${inr(T.osm_cafes)} cafés and restaurants on OpenStreetMap.`;
 };
 
-const tiedNames = (k, v) => listJoin(W.filter(r => r[k] === v).map(r => sname(r)));
 R.rank = () => {
-  setLayout('split', '60%'); const k = st.metric, m = M[k], ix = order(k), n = ix.length;
-  const top = ix.slice(0, 3), bot = ix.slice(n - 3), col = i => top.includes(i) ? RED : bot.includes(i) ? NAVY : GREY;
-  $('#chart').innerHTML = hbar({ title: m.l + ', by ward', sub: `Highest: ${tiedNames(k, W[ix[0]][k])}, ${m.f(W[ix[0]][k])}. Lowest: ${tiedNames(k, W[ix[n - 1]][k])}, ${m.f(W[ix[n - 1]][k])}${W.filter(r => r[k] === W[ix[n - 1]][k]).length > 1 ? ' each' : ''}.`, rows: ix.map(i => ({ i, label: sname(W[i]), v: W[i][k], col: col(i), bold: top.includes(i) || bot.includes(i) })), fmt: m.f, avg: { v: city(k), label: `${cityName(k)}: ${m.f(city(k))}` }, key: [[RED, 'Highest three'], [NAVY, 'Lowest three'], [GREY, 'Other wards'], [INK, cityName(k), 'line']] });
-  const { c, P } = choropleth(k, 'quantile', 5); setHL(top, RED, 4); map.getSource('hl2').setData(fc(bot.map(i => geo.features[i])));
-  setLabels(i => top.includes(i) || bot.includes(i) ? [lab2(i), top.includes(i) ? RED : NAVY, 1] : null); fit(null, 20); hoverKey = k;
-  legend(choroLegend(k, c, P, m.l + ' (five equal-count groups)') + sw('#fff;border:3px solid ' + RED, 'Highest three, outlined') + sw('#fff;border:3px solid ' + NAVY, 'Lowest three, outlined'));
-  $('#rank-out').innerHTML = `<div class="ga-big">${m.f(W[ix[0]][k])}</div>${esc(tiedNames(k, W[ix[0]][k]))}: the highest ${m.s}. Lowest: ${esc(tiedNames(k, W[ix[n - 1]][k]))} (${m.f(W[ix[n - 1]][k])}). ${cityName(k)}: <b>${m.f(city(k))}</b>. ${W.filter(r => r[k] > city(k)).length} of 24 wards are above it.`;
+  setLayout('split', '50%'); const k = st.metric, m = M[k], all = order(k), ix = all.slice(0, 15), top = ix.slice(0, 3);
+  segOn('rank-m', k);
+  const sub = `${hname(ix[0])} leads with ${m.f(W[ix[0]][k])}. ${cityName(k)}: ${cityF(k)}${m.note ? ' (' + m.note + ')' : ''}.`;
+  $('#chart').innerHTML = hbar({ title: `${m.l}: the top 15 of ${inr(all.length)} hexagons`, sub, rows: ix.map(i => ({ i, label: hname(i), v: W[i][k], col: top.includes(i) ? RED : '#9db1d4', bold: top.includes(i) })), fmt: m.f, avg: { v: city(k), label: `${cityName(k)}: ${cityF(k)}` }, key: [[RED, 'Top three'], ['#9db1d4', 'Next twelve'], [INK, cityName(k), 'line']], src: m.src });
+  const C = chor(k, 'jenks', 5); paintChor(C); setHL(ix); setLabels(top, RED); fit(ix, 50); hoverKey = k; credits(m.cr);
+  legend(chorLegend(k, C, m.l + ' (natural breaks)') + sw('#fff;border:3px solid ' + RED, 'Top 15, outlined'), m.src);
+  const share = ix.reduce((s, i) => s + W[i][k], 0) / all.reduce((s, i) => s + W[i][k], 0) * 100;
+  $('#rank-out').innerHTML = `<div class="ga-big">${m.f(W[ix[0]][k])}</div>${esc(hname(ix[0]))} has the most ${m.s}. ${/per|share/.test(k) ? '' : `The top 15 hexagons (${p1(15 / N * 100)} of the district) hold <b>${p1(share)}</b> of all ${m.s}.`}`;
   bindHover();
 };
-function bindHover() { $$('#chart g[data-w]').forEach(g => { g.onmouseenter = () => hover(+g.dataset.w); g.onmouseleave = () => hover(null); }); }
+const cityName = k => M[k].cn;
 
-const RATES = { homeless: { count: 'homeless', rate: 'homeless_per_10k', ct: 'Homeless people, by ward (count)', rt: 'Homeless people per 10,000 residents, by ward', cu: 'homeless people', ru: 'per 10,000 residents' }, slum: { count: 'slum_pop', rate: 'slum_pct', ct: 'People living in slums, by ward (count)', rt: 'Share of people living in slums, by ward', cu: 'people in slums', ru: 'of residents in slums' } };
-function ratesLeaders(t) { const a = RATES[t], ci = order(a.count)[0], ri = order(a.rate)[0]; return { ci, ri, txt: `By count: ${sname(W[ci])}, ${inr(W[ci][a.count])} ${a.cu}. By ${t === 'slum' ? 'share' : 'rate'}: ${sname(W[ri])}, ${M[a.rate].f(W[ri][a.rate])} ${a.ru}.` }; }
+const RATES = { cafes: { count: 'branded_cafes', rate: 'cafes_per_100_shops' }, shops: { count: 'shops', rate: 'shops_per_1000_bldg' } };
+function ratesInfo(t) {
+  const a = RATES[t], ci = order(a.count)[0];
+  if (t === 'cafes') { const ri = order(a.rate)[0]; return { ci, ri, c: `By count: ${hname(ci)}, ${W[ci].branded_cafes} branded cafés.`, r: `By rate: ${hname(ri)}, ${W[ri].cafes_per_100_shops.toFixed(2)} per 100 shops (Gurugram overall: ${city(a.rate).toFixed(2)}).` }; }
+  const dense = W.map((r, i) => i).filter(i => W[i].buildings >= 1000 && W[i].metro_km <= 10), lowI = order('shops_per_1000_bldg', false, dense.slice()), under = dense.filter(i => W[i].shops_per_1000_bldg < city('shops_per_1000_bldg') / 2).length;
+  return { ci, ri: lowI[0], dense, lowI, under, c: `By count: ${hname(ci)}, ${inr(W[ci].shops)} shops and eateries.`, r: `By rate: ${under} of the ${dense.length} dense urban hexagons (1,000+ buildings, within 10 km of a metro) have under half Gurugram's ${city(a.rate).toFixed(1)} shops per 1,000 buildings.` };
+}
 R.rates = () => {
-  setLayout('split', '60%'); const a = RATES[st.measure], k = st.mode === 'count' ? a.count : a.rate, ix = order(k), top = ix.slice(0, 3), L = ratesLeaders(st.measure);
-  segOn('rates-t', st.measure); segOn('rates-m', st.mode);
-  const fmt = st.mode === 'count' ? (st.measure === 'slum' ? lakh : inr) : M[k].f;
-  const lead = st.mode === 'count' ? `By count, ${sname(W[L.ci])} leads.` : `By ${st.measure === 'slum' ? 'share' : 'rate'}, ${sname(W[L.ri])} leads.`;
-  $('#chart').innerHTML = hbar({ title: st.mode === 'count' ? a.ct : a.rt, sub: lead + ' ' + (st.mode === 'count' ? `By ${st.measure === 'slum' ? 'share' : 'rate'}: ${sname(W[L.ri])}.` : `By count: ${sname(W[L.ci])}.`), rows: ix.map(i => ({ i, label: sname(W[i]), v: W[i][k], col: top.includes(i) ? RED : GREY, bold: top.includes(i) })), fmt, avg: { v: city(k), label: `${cityName(k)}: ${fmt(city(k))}` }, key: [[RED, 'Top three'], [GREY, 'Other wards'], [INK, cityName(k), 'line']] });
-  if (st.mode === 'count') { paint(() => '#eef1f6', () => 0.7); setCircles(circlesFor(k, 34, i => top.includes(i) ? RED : NAVY)); legend(circleLegend(k, 34, M[k].l + ': circle area = count') + sw(RED, 'Top three', 'ring') + sw(NAVY, 'Other wards', 'ring')); }
-  else { const { c, P } = choropleth(k, 'quantile', 5); setHL(top); legend(choroLegend(k, c, P, M[k].l + ' (five equal-count groups)') + sw('#fff;border:3px solid ' + RED, 'Top three, outlined')); }
-  setLabels(i => top.includes(i) ? [lab2(i), RED, 1] : null); fit(st.measure === 'homeless' && st.mode === 'count' ? null : null, 20); hoverKey = k;
-  $('#rates-out').innerHTML = `<p><b>${esc(L.txt.split('. By')[0])}.</b></p><p><b>By${esc(L.txt.split('. By')[1])}</b></p><p class="ga-note">${st.measure === 'homeless' ? 'Here both views agree on South Mumbai: the homeless sleep where the work is.' : 'Two different leaders: the biggest number of slum dwellers is not where the share is highest.'}</p>`;
+  setLayout('split', '52%'); segOn('rates-t', st.measure); segOn('rates-m', st.mode);
+  const a = RATES[st.measure], I = ratesInfo(st.measure), k = st.mode === 'count' ? a.count : a.rate, m = M[k];
+  let ix, title, sub;
+  if (st.mode === 'count') { ix = order(k).slice(0, 15); title = `${m.l}: most per hexagon`; sub = I.c + ' ' + I.r.replace('By rate:', 'By rate, the picture changes:'); }
+  else if (st.measure === 'cafes') { ix = order(k).slice(0, 15); title = `${m.l}: highest (hexagons with 20+ shops)`; sub = I.r + ' ' + I.c.replace('By count', 'By count'); }
+  else { ix = I.lowI.slice(0, 15); title = `Fewest shops per 1,000 buildings: 15 dense urban hexagons`; sub = I.r + ' ' + I.c; }
+  const top = ix.slice(0, 3);
+  $('#chart').innerHTML = hbar({ title, sub, rows: ix.map(i => ({ i, label: hname(i), v: W[i][k], col: top.includes(i) ? RED : '#9db1d4', bold: top.includes(i) })), fmt: m.f, avg: { v: city(k), label: `${cityName(k)}: ${cityF(k)}` }, key: [[RED, st.mode === 'rate' && st.measure === 'shops' ? 'Three most under-served' : 'Top three'], ['#9db1d4', 'Next twelve'], [INK, cityName(k), 'line']], max: st.mode === 'rate' && st.measure === 'shops' ? city(k) * 1.15 : null });
+  if (st.mode === 'count') { paint(() => ZERO, () => 0.4); setCircles(circlesFor(k, 26, i => top.includes(i) ? RED : NAVY)); legend(circleLegend(k, 26, m.l + ': circle area') + sw(RED, 'Top three', 'ring') + sw(NAVY, 'Other hexagons', 'ring')); }
+  else { const C = chor(k, 'jenks', 5); paintChor(C); legend(chorLegend(k, C, m.l + ' (natural breaks)') + sw('#fff;border:3px solid ' + RED, 'The 15 in the chart, outlined')); }
+  setHL(ix); setLabels(top, RED); fit(ix, 50); hoverKey = k;
+  $('#rates-out').innerHTML = `<p><b>${esc(I.c)}</b></p><p><b>${esc(I.r)}</b></p><p class="ga-note">${st.measure === 'cafes' ? 'Cafés per 100 shops shows where cafés are crowded among other shops, not where the customers live.' : 'Thousands of homes but few shops: under-served demand that a count of shops hides.'}</p>`;
   bindHover();
 };
 
-const ZONES = ['Island City', 'Western Suburbs', 'Eastern Suburbs'], ZC = { 'Island City': '#f2f4f9', 'Western Suburbs': '#bccae2', 'Eastern Suburbs': '#7f97c4' };
-R.compare = () => {
-  setLayout('chart'); const [w, h] = box(), Z = ZONES.map(z => agg(W.filter(r => r.zone === z)));
-  const ms = ['slum_pct', 'female_literacy_pct', 'density_per_km2', 'homeless_per_10k'];
-  let s = svgOpen(w, h); const hd = header(w, 'The three parts of Mumbai against the city average', `Eastern Suburbs: ${p1(M.slum_pct.c(Z[2]))} in slums. Island City: ${p1(M.slum_pct.c(Z[0]))}. Western Suburbs: ${p1(M.slum_pct.c(Z[1]))}. Mumbai: ${p1(city('slum_pct'))}.`); s += hd.s;
-  let y0 = hd.y + 8; s += keyRow(28, y0 + 8, [[NAVY, 'Part of the city', 'dot'], [RED, 'Mumbai average', 'line']]); y0 += 30;
-  const mapW = Math.min(300, w * 0.24), gw = w - mapW - 40, ph = (h - y0 - 50) / 2, pw = (gw - 28) / 2;
-  ms.forEach((k, j) => {
-    const px = 28 + (j % 2) * pw, py = y0 + Math.floor(j / 2) * ph, v = Z.map(t => M[k].c(t)), av = city(k);
-    const lo = k === 'female_literacy_pct' ? Math.floor((Math.min(...v, av) - 3) / 5) * 5 : 0, hi = k === 'female_literacy_pct' ? Math.ceil((Math.max(...v, av) + 1) / 5) * 5 : niceMax(Math.max(...v, av) * 1.08);
-    const labW = 168, ax0 = px + labW, ax1 = px + pw - 84, sx = x => ax0 + (x - lo) / (hi - lo) * (ax1 - ax0), rowY = r => py + 70 + r * ((ph - 110) / 2);
-    s += tx(px, py + 30, M[k].l.split(' (')[0] + (k === 'female_literacy_pct' ? ' (%)' : k === 'slum_pct' ? ' (%)' : ''), { size: 22, weight: 700, fill: NAVY });
-    ticks(lo, hi, 3).forEach(t => { s += `<line x1="${sx(t)}" y1="${py + 52}" x2="${sx(t)}" y2="${rowY(2) + 18}" stroke="#e3e7ee"/>` + tx(sx(t), rowY(2) + 40, tickF(k, t), { size: 15, fill: MUTE, anchor: 'middle' }); });
-    s += `<line x1="${sx(av)}" y1="${py + 48}" x2="${sx(av)}" y2="${rowY(2) + 18}" stroke="${RED}" stroke-width="2.5" stroke-dasharray="6 4"/>` + tx(sx(av) + 6, py + 52, `Mumbai ${M[k].f(av)}`, { size: 15, weight: 700, fill: RED, anchor: sx(av) > ax1 - 60 ? 'end' : 'start' });
-    ZONES.forEach((z, r) => { const yy = rowY(r); s += tx(px, yy + 6, z, { size: 17 }) + `<line x1="${ax0}" y1="${yy}" x2="${ax1}" y2="${yy}" stroke="#eef0f4" stroke-width="1"/><circle cx="${sx(v[r])}" cy="${yy}" r="10" fill="${NAVY}"/>` + tx(sx(v[r]) + 15, yy + 6, M[k].f(v[r]), { size: 18, weight: 700, extra: ' paint-order="stroke" stroke="#fff" stroke-width="5"' }); });
-    if (k === 'female_literacy_pct') s += tx(ax1 + 64, py + 30, `axis starts at ${lo}%`, { size: 14, fill: MUTE, anchor: 'end' });
+function zoneStats() {
+  return ZONES.map(z => { const ids = W.map((r, i) => i).filter(i => W[i].zone === z), t = agg(ids.map(i => W[i])); return { z, ids, land: ids.length / N * 100, buildings: t.buildings / T.buildings * 100, shops: t.shops / T.shops * 100, cafes: t.branded_cafes / T.branded_cafes * 100, nc: t.branded_cafes }; });
+}
+const ZB = [['land', 'Land'], ['buildings', 'Buildings'], ['shops', 'Shops and eateries'], ['cafes', 'Branded cafés']];
+function zoneBars(x0, y0, w, h, col, opt = {}) {
+  const Z = zoneStats(); let s = ''; const gh = h / 3, rh = (gh - 34) / 4, lw = 190, bw = w - lw - 80;
+  Z.forEach((z, g) => {
+    const gy = y0 + g * gh; s += tx(x0, gy + 22, z.z, { size: 20, weight: 700, fill: NAVY });
+    ZB.forEach(([key, lab], q) => { const yy = gy + 32 + q * rh, v = z[key], c = col(g, key); s += tx(x0 + lw - 10, yy + rh * 0.62, lab, { size: 16, anchor: 'end', weight: c === RED ? 700 : 400 }) + `<rect x="${x0 + lw}" y="${yy + rh * 0.12}" width="${Math.max(1.5, bw * v / 100)}" height="${rh * 0.76}" rx="2" fill="${c}"/>` + tx(x0 + lw + bw * v / 100 + 8, yy + rh * 0.62, p1(v), { size: 16, weight: c === RED ? 700 : 400 }); });
   });
-  const mx = w - mapW - 12, mh = h - y0 - 130; s += `<g transform="translate(${mx},${y0})">` + svgMap(mapW, mh, i => ZC[W[i].zone], null, 4, 0.7) + '</g>';
-  ZONES.forEach((z, r) => { s += `<rect x="${mx + 4}" y="${y0 + mh + 14 + r * 26}" width="22" height="16" rx="3" fill="${ZC[z]}" stroke="rgba(0,0,0,.3)"/>` + tx(mx + 34, y0 + mh + 28 + r * 26, z, { size: 15 }); });
+  return s;
+}
+const ZCOL = { land: '#d5dae2', buildings: '#9db1d4', shops: '#4a69a2', cafes: RED };
+R.compare = () => {
+  setLayout('chart'); const [w, h] = box(), Z = zoneStats(), z1 = Z[0];
+  let s = svgOpen(w, h); const hd = header(w, `Within 1 km of a metro: ${p1(z1.land)} of the land, ${p1(z1.cafes)} of branded cafés`, `Each zone's share of Gurugram's land, buildings, shops and branded cafés. Within 1 km: ${p1(z1.buildings)} of buildings and ${p1(z1.shops)} of shops. More than 3 km away: ${p1(Z[2].buildings)} of buildings but ${p1(Z[2].cafes)} of cafés.`); s += hd.s;
+  let y0 = hd.y + 6; s += keyRow(28, y0 + 8, ZB.map(([k, l]) => [ZCOL[k], l + ' (% of Gurugram)'])); y0 += 22;
+  const mapW = Math.min(330, w * 0.28);
+  s += zoneBars(28, y0, w - mapW - 70, h - y0 - 46, (g, k) => ZCOL[k]);
+  const mx = w - mapW - 16, mh = Math.min(mapW * 0.8, h - y0 - 160); s += `<g transform="translate(${mx},${y0 + 30})">` + svgMap(mapW, mh, i => ZC[W[i].zone], null, 2, 0.3) + '</g>';
+  ZONES.forEach((z, r) => { s += `<rect x="${mx + 4}" y="${y0 + mh + 50 + r * 26}" width="22" height="16" rx="3" fill="${ZC[z]}" stroke="rgba(0,0,0,.3)"/>` + tx(mx + 34, y0 + mh + 64 + r * 26, z, { size: 15 }); });
+  s += tx(mx, y0 + 18, 'The three zones', { size: 17, weight: 700, fill: NAVY });
   s += footer(w, h) + '</svg>'; $('#chart').innerHTML = s;
-  $('#compare-out').innerHTML = `<table style="width:100%">${ZONES.map((z, r) => `<tr><td>${z}</td><td style="text-align:right"><b>${p1(M.slum_pct.c(Z[r]))}</b> in slums</td></tr>`).join('')}<tr><td><b>Mumbai</b></td><td style="text-align:right"><b>${p1(city('slum_pct'))}</b></td></tr></table>`;
+  $('#compare-out').innerHTML = `<table style="width:100%"><tr><th></th><th class="n">Land</th><th class="n">Buildings</th><th class="n">Cafés</th></tr>${Z.map(z => `<tr><td>${z.z}</td><td class="n">${p1(z.land)}</td><td class="n">${p1(z.buildings)}</td><td class="n"><b>${p1(z.cafes)}</b></td></tr>`).join('')}</table>`;
 };
 
 R.relate = () => {
   setLayout('chart'); $('#rel-x').value = st.x; $('#rel-y').value = st.y;
   const [w, h] = box(), X = vals(st.x), Y = vals(st.y), { r, a, b } = corr(X, Y), mx = M[st.x], my = M[st.y];
   const dir = r < 0 ? 'negative' : 'positive', word = strength(r);
-  const title = `${word[0].toUpperCase() + word.slice(1)} ${dir} link: r = ${rtxt(r)}`;
-  const sub = Math.abs(r) < 0.2 ? `${my.l.split(' (')[0]} and ${mx.s} hardly move together across the 24 wards.` : `Wards with a higher ${mx.s} tend to have ${r < 0 ? 'lower' : 'higher'} ${my.s}. Across: ${mx.l.split(' (')[0].toLowerCase()}. Up: ${my.l.split(' (')[0].toLowerCase()}.`;
+  const title = Math.abs(r) < 0.2 ? `Almost no link: r = ${rtxt(r)}` : `${cap(word)} ${dir} link: r = ${rtxt(r)}`;
+  const sub = Math.abs(r) < 0.2 ? `${cap(my.s)} and ${mx.s} hardly move together across ${inr(N)} hexagons${st.x === 'new_built_share' ? ': where Gurugram is building fastest, shops and cafés have not followed yet' : ''}.` : `Hexagons with more ${mx.s} tend to have ${r < 0 ? 'fewer' : 'more'} ${my.s}. Dots far below the line have fewer ${my.s} than their ${mx.s} would suggest: possible white space.`;
   let s = svgOpen(w, h); const hd = header(w, title, sub); s += hd.s;
-  const keyY = hd.y + 10, maxR = 26, pop = vals('population'), pm = Math.max(...pop), rad = i => 5 + maxR * Math.sqrt(pop[i] / pm);
-  const L = 110, Rr = w - 40, Tt = keyY + 100, Bb = h - 128;
-  const ext = (v, padF) => { const lo = Math.min(...v), hi = Math.max(...v), p = (hi - lo) * padF; return [lo - p, hi + p]; };
-  const [x0, x1] = ext(X, 0.08), [y0, y1] = ext(Y, 0.1), sx = v => L + (v - x0) / (x1 - x0) * (Rr - L), sy = v => Bb - (v - y0) / (y1 - y0) * (Bb - Tt);
+  const keyY = hd.y + 14, L = 100, Rr = w - 40, Tt = keyY + 56, Bb = h - 128;
+  const ext = (v) => { const lo = Math.min(...v), hi = Math.max(...v), p = (hi - lo) * 0.04; return [Math.max(lo - p, lo >= 0 ? 0 : -Infinity), hi + p]; };
+  const [x0, x1] = ext(X), [y0, y1] = ext(Y), sx = v => L + (v - x0) / (x1 - x0) * (Rr - L), sy = v => Bb - (v - y0) / (y1 - y0) * (Bb - Tt);
   ticks(x0, x1, 6).forEach(t => { if (t < x0 || t > x1) return; s += `<line x1="${sx(t)}" y1="${Tt}" x2="${sx(t)}" y2="${Bb}" stroke="#eceff4"/>` + tx(sx(t), Bb + 22, tickF(st.x, t), { size: 15, fill: MUTE, anchor: 'middle' }); });
   ticks(y0, y1, 5).forEach(t => { if (t < y0 || t > y1) return; s += `<line x1="${L}" y1="${sy(t)}" x2="${Rr}" y2="${sy(t)}" stroke="#eceff4"/>` + tx(L - 10, sy(t) + 5, tickF(st.y, t), { size: 15, fill: MUTE, anchor: 'end' }); });
   s += `<line x1="${L}" y1="${Bb}" x2="${Rr}" y2="${Bb}" stroke="#9aa3b2"/><line x1="${L}" y1="${Tt}" x2="${L}" y2="${Bb}" stroke="#9aa3b2"/>`;
-  s += tx((L + Rr) / 2, Bb + 52, mx.l + ' →', { size: 17, weight: 700, anchor: 'middle' }) + tx(28, Tt - 14, '↑ ' + my.l, { size: 17, weight: 700 });
-  const ya = a + b * x0, yb = a + b * x1; s += `<line x1="${sx(x0)}" y1="${sy(ya)}" x2="${sx(x1)}" y2="${sy(yb)}" stroke="${NAVY}" stroke-width="2.5" stroke-dasharray="8 5"/>`;
-  // which wards to label: furthest from the trend + extremes
-  const res = W.map((_, i) => ({ i, e: Math.abs(Y[i] - (a + b * X[i])) })).sort((p, q) => q.e - p.e).slice(0, 4).map(p => p.i);
-  const lab = [...new Set([...res, order(st.x)[0], order(st.x, false)[0], order(st.y)[0], order(st.y, false)[0]])];
-  W.map((_, i) => i).sort((p, q) => pop[q] - pop[p]).forEach(i => { const on = lab.includes(i); s += `<circle data-w="${i}" cx="${sx(X[i]).toFixed(1)}" cy="${sy(Y[i]).toFixed(1)}" r="${rad(i).toFixed(1)}" fill="${on ? RED : NAVY}" fill-opacity="${on ? 0.45 : 0.22}" stroke="${on ? RED : NAVY}" stroke-width="1.5"/>`; });
+  s += tx((L + Rr) / 2, Bb + 52, mx.l + ', per hexagon →', { size: 17, weight: 700, anchor: 'middle' }) + tx(28, Tt - 16, '↑ ' + my.l + ', per hexagon', { size: 17, weight: 700 });
+  const clip = (x, y) => [Math.max(x0, Math.min(x1, x)), y];
+  const ya = a + b * x0, yb = a + b * x1; s += `<line x1="${sx(x0)}" y1="${sy(Math.max(y0, Math.min(y1, ya)))}" x2="${sx(x1)}" y2="${sy(Math.max(y0, Math.min(y1, yb)))}" stroke="${NAVY}" stroke-width="2.5" stroke-dasharray="8 5"/>`;
+  const resid = W.map((_, i) => ({ i, e: Y[i] - (a + b * X[i]) }));
+  const below = [...resid].sort((p, q) => p.e - q.e).slice(0, 3).map(p => p.i), above = [...resid].sort((p, q) => q.e - p.e).slice(0, 2).map(p => p.i);
+  const weak = Math.abs(r) < 0.2, oy = order(st.y), ox = order(st.x); const lab = weak ? [...new Set([oy[0], oy[1], ox[0], ox[1]])] : [...new Set([...below, ...above, ox[0], oy[0]])];
+  W.forEach((_, i) => { if (!lab.includes(i)) s += `<circle cx="${sx(X[i]).toFixed(1)}" cy="${sy(Y[i]).toFixed(1)}" r="3.6" fill="${NAVY}" fill-opacity="0.28"/>`; });
+  lab.forEach(i => { s += `<circle data-w="${i}" cx="${sx(X[i]).toFixed(1)}" cy="${sy(Y[i]).toFixed(1)}" r="7" fill="${!weak && below.includes(i) ? RED : '#7a0000'}" stroke="#fff" stroke-width="1.5"/>`; });
   const placed = [], fs = 15;
   lab.forEach(i => {
-    const cx = sx(X[i]), cy = sy(Y[i]), rr = rad(i), t = sname(W[i]), tw0 = tw(t, fs, 700);
-    const cand = [[cx + rr + 6, cy + 5, 'start'], [cx - rr - 6, cy + 5, 'end'], [cx, cy - rr - 8, 'middle'], [cx, cy + rr + 19, 'middle'], [cx + rr + 4, cy - rr - 2, 'start'], [cx - rr - 4, cy + rr + 14, 'end']];
-    const bx = ([x, y, an]) => { const x0b = an === 'start' ? x : an === 'end' ? x - tw0 : x - tw0 / 2; return [x0b - 2, y - fs, x0b + tw0 + 2, y + 4]; };
-    const bad = c => { const q = bx(c); let n = 0; if (q[0] < L + 2 || q[2] > Rr || q[1] < Tt - 4 || q[3] > Bb - 2) n += 100; n += 10 * placed.filter(p => !(q[2] < p[0] || q[0] > p[2] || q[3] < p[1] || q[1] > p[3])).length; W.forEach((_, j) => { if (j === i) return; const px = Math.max(q[0], Math.min(sx(X[j]), q[2])), py = Math.max(q[1], Math.min(sy(Y[j]), q[3])); if ((px - sx(X[j])) ** 2 + (py - sy(Y[j])) ** 2 < rad(j) ** 2) n++; }); return n; };
-    const ok = c => { const q = bx(c); if (q[0] < L + 2 || q[2] > Rr || q[1] < Tt - 4 || q[3] > Bb - 2) return false; if (placed.some(p => !(q[2] < p[0] || q[0] > p[2] || q[3] < p[1] || q[1] > p[3]))) return false; return !W.some((_, j) => { if (j === i) return false; const px = Math.max(q[0], Math.min(sx(X[j]), q[2])), py = Math.max(q[1], Math.min(sy(Y[j]), q[3])); return (px - sx(X[j])) ** 2 + (py - sy(Y[j])) ** 2 < rad(j) ** 2; }); };
-    const c = cand.find(ok) || [...cand].sort((p, q) => bad(p) - bad(q))[0]; placed.push(bx(c)); s += tx(c[0], c[1], t, { size: fs, weight: 700, anchor: c[2], fill: '#7a0000', extra: ' paint-order="stroke" stroke="#fff" stroke-width="4"' });
+    const cx = sx(X[i]), cy = sy(Y[i]), t = hname(i), tw0 = tw(t, fs, 700);
+    const cand = [[cx + 11, cy + 5, 'start'], [cx - 11, cy + 5, 'end'], [cx, cy - 13, 'middle'], [cx, cy + 24, 'middle'], [cx + 9, cy - 12, 'start'], [cx - 9, cy - 12, 'end'], [cx - 9, cy + 22, 'end'], [cx + 9, cy + 22, 'start']];
+    const bx = ([x, y, an]) => { const xb = an === 'start' ? x : an === 'end' ? x - tw0 : x - tw0 / 2; return [xb - 2, y - fs, xb + tw0 + 2, y + 4]; };
+    const ok = c => { const q = bx(c); if (q[0] < L + 2 || q[2] > Rr || q[1] < Tt - 4 || q[3] > Bb - 2) return false; return !placed.some(p => !(q[2] < p[0] || q[0] > p[2] || q[3] < p[1] || q[1] > p[3])); };
+    const c = cand.find(ok) || cand[0]; placed.push(bx(c)); s += tx(c[0], c[1], t, { size: fs, weight: 700, anchor: c[2], fill: '#7a0000', extra: ' paint-order="stroke" stroke="#fff" stroke-width="4"' });
   });
-  // key
-   const kY = keyY + 22; let kx = 28; s += `<circle cx="${kx + 12}" cy="${kY}" r="${(5 + maxR * Math.sqrt(3e5 / pm)).toFixed(1)}" fill="${NAVY}" fill-opacity=".22" stroke="${NAVY}"/>`; kx += 40; s += tx(kx, kY + 5, '3 lakh people', { size: 15 }); kx += tw('3 lakh people', 15) + 22;
-  s += `<circle cx="${kx + 32}" cy="${kY}" r="${(5 + maxR * Math.sqrt(9e5 / pm)).toFixed(1)}" fill="${NAVY}" fill-opacity=".22" stroke="${NAVY}"/>`; kx += 72; s += tx(kx, kY + 5, '9 lakh people (circle size = population)', { size: 15 }); kx += tw('9 lakh people (circle size = population)', 15) + 26;
-  s += keyRow(kx, kY + 5, [[RED, 'Named wards: furthest from the trend or at the extremes', 'dot'], [NAVY, 'Trend line', 'line']]);
-  s += tx(28, h - 44, 'A link is not proof of cause: slums, migration, schooling and income all move together.', { size: 16, weight: 700, fill: INK });
-  s += footer(w, h) + '</svg>'; $('#chart').innerHTML = s;
-  $('#relate-out').innerHTML = `<div class="ga-big">r = ${rtxt(r)}</div>${word[0].toUpperCase() + word.slice(1)} ${dir} link between ${mx.s} and ${my.s} across the 24 wards. r runs from −1 (perfectly opposite) through 0 (no link) to +1 (perfectly together). <b>A link is not proof of cause.</b>`;
+  s += keyRow(28, keyY + 9, weak ? [['rgba(30,48,99,.35)', `One hexagon (${inr(N)} in all)`, 'dot'], ['#7a0000', 'Named: highest on either axis', 'dot'], [NAVY, 'Trend line', 'line']] : [['rgba(30,48,99,.35)', `One hexagon (${inr(N)} in all)`, 'dot'], [RED, 'Named: furthest below the trend', 'dot'], ['#7a0000', 'Named: above the trend or highest', 'dot'], [NAVY, 'Trend line', 'line']]);
+  s += tx(28, h - 44, 'A link is not proof of cause: land prices, zoning, offices and the metro all move together.', { size: 16, weight: 700, fill: INK });
+  s += footer(w, h, /built/.test(st.x + st.y) ? SRC_W : SRC) + '</svg>'; $('#chart').innerHTML = s;
+  $('#relate-out').innerHTML = `<div class="ga-big">r = ${rtxt(r)}</div>${Math.abs(r) < 0.2 ? 'Almost no' : cap(word) + ' ' + dir} link between ${mx.s} and ${my.s} across ${inr(N)} hexagons. r runs from −1 (perfectly opposite) through 0 (no link) to +1 (perfectly together). <b>A link is not proof of cause.</b>`;
 };
 
 R.map = () => {
-  setLayout('split', '50%'); $('#map-m').value = st.metric; segOn('map-meth', st.method); segOn('map-k', st.classes);
-  const k = st.metric, m = M[k], v = vals(k), K = st.classes, P = pal(K), c = classify(v, st.method, K);
-  paint(i => P[c.cls[i]]); const topG = c.groups[K - 1]; setHL(topG, RED, 3); setLabels(i => topG.includes(i) ? [lab2(i), '#7a0000', 1] : null); fit(null, 20); hoverKey = k;
-  legend(choroLegend(k, c, P, `${m.l}: ${METH[st.method].toLowerCase()}`) + sw('#fff;border:3px solid ' + RED, 'Darkest group, outlined'));
+  setLayout('split', '46%'); $('#map-m').value = st.metric; segOn('map-meth', st.method); segOn('map-k', st.classes);
+  const k = st.metric, m = M[k], K = st.classes, C = chor(k, st.method, K), topG = C.groups[K - 1];
+  paintChor(C); setHL(topG.length <= 60 ? topG : [], RED, 2.5); setLabels(topG.length <= 8 ? topG : [], RED); fit(null, 16); hoverKey = k; credits(m.cr);
+  legend(chorLegend(k, C, `${m.l}: ${METH[st.method].toLowerCase()}`) + (topG.length <= 60 ? sw('#fff;border:3px solid ' + RED, 'Darkest group, outlined') : ''), m.src);
+  const cmp = ['quantile', 'equal', 'jenks'].map(mm => [mm, chor(k, mm, K).groups[K - 1].length]);
+  const lightN = C.nz + C.nnull + C.groups[0].length, nv = valid(k).length;
   const [w, h] = box(); let s = svgOpen(w, h);
-  const darkPop = topG.reduce((t, i) => t + W[i].population, 0) / T.population * 100;
-  const cmp = ['quantile', 'equal', 'jenks'].map(mm => { const cc = classify(v, mm, K); return [mm, cc.groups[K - 1].length]; });
-  const hd = header(w, `${METH[st.method]}: ${topG.length} ward${topG.length === 1 ? '' : 's'} in the darkest group`, `${m.l}, ${K} groups; the darkest holds ${p1(darkPop)} of Mumbai's people. Wards in the darkest group by method: ${cmp.map(([mm, n]) => `${METH[mm].split(' (')[0].toLowerCase()} ${n}`).join(', ')}.`); s += hd.s;
-  // number line
-  const L = 40, Rr = w - 40, y0 = hd.y + 86, lo = Math.min(...v), hi = Math.max(...v), sx = x => L + (x - lo) / (hi - lo) * (Rr - L);
-  wrap('Each dot is a ward, placed by its value. Dashed lines: where one group ends and the next begins.', 16, w - 2 * L).forEach((l, z) => s += tx(L, hd.y + 22 + z * 21, l, { size: 16, fill: INK }));
-  const stack = {}; const ys = W.map((_, i) => { const key = Math.round(sx(v[i]) / 16); stack[key] = (stack[key] || 0) + 1; return y0 + 40 - (stack[key] - 1) * 17; });
-  s += `<line x1="${L}" y1="${y0 + 52}" x2="${Rr}" y2="${y0 + 52}" stroke="#9aa3b2"/>`;
-  ticks(lo, hi, 6).forEach(t => { if (t >= lo && t <= hi) s += `<line x1="${sx(t)}" y1="${y0 + 52}" x2="${sx(t)}" y2="${y0 + 58}" stroke="#9aa3b2"/>` + tx(sx(t), y0 + 76, tickF(k, t), { size: 15, fill: MUTE, anchor: 'middle' }); });
-  for (let j = 0; j < K - 1; j++) { const a = c.ranges[j], b2 = c.ranges[j + 1]; if (!a || !b2) continue; const bx = st.method === 'equal' ? sx(a[1]) : (sx(a[1]) + sx(b2[0])) / 2;  s += `<line x1="${bx}" y1="${y0 - 22}" x2="${bx}" y2="${y0 + 56}" stroke="${INK}" stroke-width="1.5" stroke-dasharray="5 4"/>`; }
-  W.forEach((_, i) => { s += `<circle data-w="${i}" cx="${sx(v[i]).toFixed(1)}" cy="${ys[i]}" r="8" fill="${P[c.cls[i]]}" stroke="${c.cls[i] === K - 1 ? RED : '#55607a'}" stroke-width="${c.cls[i] === K - 1 ? 2.5 : 1.2}"/>`; });
-  // group table
-  let ty = y0 + 118; s += tx(L, ty, 'The groups', { size: 22, weight: 700, fill: NAVY }); ty += 12;
-  const nameLines = g => { const out = []; let line = ''; g.forEach((i, z) => { const t = `${code(W[i])} (${locs(W[i], 1)[0]})` + (z < g.length - 1 ? ',' : ''); const tt = line ? line + ' ' + t : t; if (tw(tt, 14.5) > w - L - 280 && line) { out.push(line); line = t; } else line = tt; }); if (line) out.push(line); return out; };
-  let yy = ty;
-  [...c.ranges.keys()].reverse().forEach(j => {
-    const g = c.groups[j], rg = c.ranges[j], nl = nameLines(g);
-    s += `<rect x="${L}" y="${yy + 8}" width="28" height="20" rx="3" fill="${P[j]}" stroke="rgba(0,0,0,.3)"/>` + tx(L + 40, yy + 24, rg ? `${m.f(rg[0])} to ${m.f(rg[1])}` : 'no wards', { size: 16, weight: 700 }) + tx(L + 195, yy + 24, `${g.length} ward${g.length === 1 ? '' : 's'}`, { size: 16 });
-    nl.forEach((ln, z) => s += tx(L + 270, yy + 24 + z * 18, ln, { size: 14.5, fill: MUTE }));
-    yy += Math.max(1, nl.length) * 18 + 12;
-  });
-  s += footer(w, h, SRC, L) + '</svg>'; $('#chart').innerHTML = s;
-  $('#map-out').innerHTML = `Same ${m.s}, ${K} groups. Wards in the darkest group: ${cmp.map(([mm, n]) => `<b>${METH[mm].split(' (')[0]}</b> ${n}`).join(' · ')}. Equal counts puts the same number of wards in every group; equal steps cuts the range into equal slices; natural breaks puts the lines in the biggest gaps.`;
+  const hd = header(w, `${METH[st.method].split(' (')[0]}: ${hx(topG.length)} in the darkest group`, `${m.l}, ${K} groups. Lightest two shades cover ${p1(lightN / N * 100)} of Gurugram. Darkest group by method: equal counts ${cmp[0][1]}, equal steps ${cmp[1][1]}, natural breaks ${cmp[2][1]}.`); s += hd.s;
+  let y = hd.y + 24; s += tx(28, y, 'How many hexagons fall in each group', { size: 22, weight: 700, fill: NAVY }); y += 16;
+  const rows = [...C.ranges.keys()].reverse().map(j => [C.P[j], C.ranges[j] ? rng(m.f, C.ranges[j]) : 'no hexagons', C.groups[j].length, j === K - 1]);
+  if (C.nz) rows.push([ZERO, `None (0)`, C.nz, false]); if (C.nnull) rows.push([ZERO, 'Too few to compute', C.nnull, false]);
+  const rh = Math.min(62, (h - y - 70) / rows.length), lw = 190, bmax = w - 28 - lw - 190;
+  rows.forEach(([c, lab, n, dark], q) => { const yy = y + q * rh, bl = bmax * n / N; s += `<rect x="28" y="${yy + rh * 0.2}" width="26" height="${rh * 0.5}" rx="3" fill="${c}" stroke="rgba(0,0,0,.3)"/>` + tx(64, yy + rh * 0.58, lab, { size: 16, weight: 700 }) + `<rect x="${28 + lw}" y="${yy + rh * 0.14}" width="${Math.max(2, bl)}" height="${rh * 0.62}" rx="2" fill="${c === ZERO ? '#dfe2e8' : c}" stroke="${dark ? RED : 'rgba(0,0,0,.2)'}" stroke-width="${dark ? 2.5 : 1}"/>` + tx(28 + lw + Math.max(2, bl) + 10, yy + rh * 0.58, `${hx(n)} (${p1(n / N * 100)})`, { size: 16, weight: dark ? 700 : 400 }); });
+  s += footer(w, h, m.src) + '</svg>'; $('#chart').innerHTML = s;
+  $('#map-out').innerHTML = `Same ${m.s}, ${K} groups. Hexagons in the darkest group: ${cmp.map(([mm, n]) => `<b>${METH[mm].split(' (')[0]}</b> ${n}`).join(' · ')}. Equal counts puts the same number of hexagons in every group; equal steps cuts the range into equal slices; natural breaks puts the lines in the biggest gaps. Hexagons with none are shown in the lightest grey.`;
 };
 
+function areaAgg() { const m = {}; W.forEach((r, i) => { if (!r.branded_cafes) return; const a = cap(r.area); (m[a] = m[a] || { a, v: 0, ids: [] }); m[a].v += r.branded_cafes; m[a].ids.push(i); }); return Object.values(m).sort((p, q) => q.v - p.v || p.a.localeCompare(q.a)); }
 const VERD = {
-  pie: ['no', 'Pie chart: 24 thin slices. Nobody can tell which is biggest; angles are hard to compare.'],
+  pie: ['no', 'Pie chart: 16 slices. Nobody can tell which is biggest; angles are hard to compare.'],
   table: ['no', 'Table: exact numbers, good for look-up, but the eye must hunt for the biggest.'],
   bar: ['ok', 'Sorted bar chart: the ranking jumps out, top to bottom.'],
   dot: ['ok', 'Dot plot: the same ranking with less ink; useful when bars feel heavy.'],
-  map: ['ok', 'Map: shows where (the suburbs), but not the ranking. Use it for "where", not "how many".'],
+  map: ['ok', 'Map: shows where (along the metro and Golf Course Road), but not the ranking.'],
 };
 R.chart = () => {
-  segOn('chart-c', st.chart); const v = VERD[st.chart], q = 'Which wards have the most people in slums?';
+  segOn('chart-c', st.chart); const v = VERD[st.chart], q = 'Which areas have the most branded cafés?', A = areaAgg(), top = A.slice(0, 3);
   const vh = `<div class="st-verdict"><span class="${v[0]}">${v[0] === 'ok' ? '✓' : '✗'}</span> ${esc(v[1])}</div>`;
-  const ix = order('slum_pop'), top = ix.slice(0, 3);
-  $('#chart-out').innerHTML = `<b>${v[0] === 'ok' ? '✓' : '✗'}</b> ${esc(v[1])}`;
+  $('#chart-out').innerHTML = `<b>${v[0] === 'ok' ? '✓' : '✗'}</b> ${esc(v[1])} Areas are approximate names; hexagons that share a name are added together.`;
   if (st.chart === 'map') {
-    setLayout('split', '42%');
-    $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">${q}</div>${vh}<p style="font-size:20px;line-height:1.5">Each circle's area is the number of people living in slums in that ward. The big circles sit in the suburbs: ${listJoin(top.map(i => sname(W[i])))}.</p><p style="font-size:20px;line-height:1.5">But can you say which circle is the biggest? A map answers <b>where</b>; a sorted bar answers <b>how many</b>.</p><div class="st-src">${SRC}</div></div>`;
-    paint(() => '#eef1f6', () => 0.7); setCircles(circlesFor('slum_pop', 36, i => top.includes(i) ? RED : NAVY)); setLabels(i => top.includes(i) ? [lab2(i), RED, 1] : null); fit(null, 20); hoverKey = 'slum_pop';
-    legend(circleLegend('slum_pop', 36, 'People living in slums: circle area') + sw(RED, 'Top three wards', 'ring') + sw(NAVY, 'Other wards', 'ring'));
+    setLayout('split', '40%');
+    $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">${q}</div>${vh}<p style="font-size:20px;line-height:1.5">Each circle's area is the number of branded cafés in that hexagon. The big circles sit on the metro line and Golf Course Road: ${listJoin(top.map(x => x.a))}.</p><p style="font-size:20px;line-height:1.5">But can you say which area has the most? A map answers <b>where</b>; a sorted bar answers <b>how many</b>.</p><div class="st-src">${SRC}</div></div>`;
+    paint(() => ZERO, () => 0.4); const cid = W.map((r, i) => i).filter(i => W[i].branded_cafes > 0);
+    setCircles(circlesFor('branded_cafes', 22, i => top.some(x => x.ids.includes(i)) ? RED : NAVY)); setLabels(top.map(x => x.ids.sort((a, b) => W[b].branded_cafes - W[a].branded_cafes)[0]), RED); fit(cid, 40); hoverKey = 'branded_cafes';
+    legend(circleLegend('branded_cafes', 22, 'Branded cafés: circle area') + sw(RED, 'Top three areas', 'ring') + sw(NAVY, 'Other hexagons', 'ring'));
     return;
   }
   setLayout('chart'); const [w, h] = box();
   if (st.chart === 'table') {
-    const alpha = W.map((r, i) => i);
-    const half = Math.ceil(N / 2), tbl = part => `<table class="st-tbl st-big"><thead><tr><th>Ward and localities</th><th class="n">People in slums</th></tr></thead><tbody>${part.map(i => `<tr><td><b>${esc(code(W[i]))}</b> <small>${esc(locs(W[i], 2).join(', '))}</small></td><td class="n">${inr(W[i].slum_pop)}</td></tr>`).join('')}</tbody></table>`;
-    $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">${q}</div>${vh}<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px">${tbl(alpha.slice(0, half))}${tbl(alpha.slice(half))}</div><div class="st-src">Wards in their official order, as the table usually arrives. ${SRC}</div></div>`;
+    const al = [...A].sort((p, q2) => p.a.localeCompare(q2.a)), third = Math.ceil(al.length / 3);
+    const tbl = part => `<table class="st-tbl" style="font-size:16px"><thead><tr><th>Area (approximate)</th><th class="n">Cafés</th></tr></thead><tbody>${part.map(x => `<tr><td>${esc(x.a)}</td><td class="n">${x.v}</td></tr>`).join('')}</tbody></table>`;
+    $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">${q}</div>${vh}<div style="display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:22px">${tbl(al.slice(0, third))}${tbl(al.slice(third, 2 * third))}${tbl(al.slice(2 * third))}</div><div class="st-src">All ${A.length} areas with a branded café, in alphabetical order, as a table usually arrives. ${SRC}</div></div>`;
     return;
   }
   if (st.chart === 'bar' || st.chart === 'dot') {
-    const inner = hbar({ size: [w, h], title: q, subHTML: vh.replace(/^<div class="st-verdict">|<\/div>$/g, ''), rows: ix.map(i => ({ i, label: sname(W[i]), v: W[i].slum_pop, col: top.includes(i) ? RED : (st.chart === 'dot' ? NAVY : GREY), bold: top.includes(i) })), fmt: lakh, dots: st.chart === 'dot', key: [[RED, 'Top three', st.chart === 'dot' ? 'dot' : null], [st.chart === 'dot' ? NAVY : GREY, 'Other wards', st.chart === 'dot' ? 'dot' : null]] });
-    const svg = inner;
-    $('#chart').innerHTML = svg;
-    bindHover(); return;
+    const t15 = A.slice(0, 15), vhh = vh.replace(/^<div class="st-verdict">|<\/div>$/g, '');
+    $('#chart').innerHTML = hbar({ title: q, subHTML: vhh, rows: t15.map((x, j) => ({ i: x.ids[0], label: x.a, v: x.v, col: j < 3 ? RED : (st.chart === 'dot' ? NAVY : GREY), bold: j < 3 })), fmt: inr, dots: st.chart === 'dot', key: [[RED, 'Top three', st.chart === 'dot' ? 'dot' : null], [st.chart === 'dot' ? NAVY : GREY, `Next twelve (of ${A.length} areas with a branded café)`, st.chart === 'dot' ? 'dot' : null]] });
+    return;
   }
-  // pie
+  const P = A.slice(0, 15).map(x => [x.a, x.v]), rest = A.slice(15); P.push([`${rest.length} other areas`, rest.reduce((s2, x) => s2 + x.v, 0)]);
   let s = svgOpen(w, h); s += tx(28, 40, q, { size: 28, weight: 700, fill: NAVY });
-  s += `<foreignObject x="20" y="52" width="${w - 40}" height="44"><div xmlns="http://www.w3.org/1999/xhtml" class="st-verdict" style="margin:0;font-family:${FONT.replace(/"/g, "'")}"><span class="no">✗</span> ${esc(v[1])}</div></foreignObject>`;
-  const cx = w * 0.32, cy = (h + 60) / 2, rr = Math.min(w * 0.27, (h - 170) / 2); let a0 = -Math.PI / 2; const tot = T.slum_pop;
-  W.forEach((r, i) => { const a1 = a0 + r.slum_pop / tot * 2 * Math.PI, lg = a1 - a0 > Math.PI ? 1 : 0; s += `<path d="M${cx},${cy}L${cx + rr * Math.cos(a0)},${cy + rr * Math.sin(a0)}A${rr},${rr} 0 ${lg} 1 ${cx + rr * Math.cos(a1)},${cy + rr * Math.sin(a1)}Z" fill="hsl(${i * 15},62%,${i % 2 ? 62 : 72}%)" stroke="#fff" stroke-width="1"/>`; a0 = a1; });
-  const lx = w * 0.62, ly = 128, lh = (h - ly - 50) / 13;
-  W.forEach((r, i) => { const col = Math.floor(i / 12), row = i % 12, xx = lx + col * (w - lx) / 2, yy = ly + row * lh * 1.08; s += `<rect x="${xx}" y="${yy - 13}" width="18" height="15" fill="hsl(${i * 15},62%,${i % 2 ? 62 : 72}%)"/>` + tx(xx + 24, yy, `${code(r)} (${locs(r, 1)[0]})`, { size: 14 }); });
+  s += `<foreignObject x="20" y="52" width="${w - 40}" height="44"><div xmlns="http://www.w3.org/1999/xhtml" class="st-verdict" style="margin:0"><span class="no">✗</span> ${esc(v[1])}</div></foreignObject>`;
+  const cx = w * 0.3, cy = (h + 60) / 2, rr = Math.min(w * 0.25, (h - 190) / 2); let a0 = -Math.PI / 2; const tot = T.branded_cafes, col = j => `hsl(${j * 22},62%,${j % 2 ? 62 : 72}%)`;
+  P.forEach(([l, val], j) => { const a1 = a0 + val / tot * 2 * Math.PI, lg = a1 - a0 > Math.PI ? 1 : 0; s += `<path d="M${cx},${cy}L${cx + rr * Math.cos(a0)},${cy + rr * Math.sin(a0)}A${rr},${rr} 0 ${lg} 1 ${cx + rr * Math.cos(a1)},${cy + rr * Math.sin(a1)}Z" fill="${col(j)}" stroke="#fff" stroke-width="1"/>`; a0 = a1; });
+  const lx = w * 0.6, ly = 140, lh = (h - ly - 60) / P.length;
+  P.forEach(([l], j) => { const yy = ly + j * lh; s += `<rect x="${lx}" y="${yy - 13}" width="18" height="15" fill="${col(j)}"/>` + tx(lx + 26, yy, l, { size: 15 }); });
   s += footer(w, h) + '</svg>'; $('#chart').innerHTML = s;
 };
 
 const DSTAGE = ['', 'The default chart', 'Remove gridlines, borders and the legend box', 'Sort, turn sideways and label directly', 'Grey everything; colour only what matters', 'Say the point in the title'];
 R.declutter = () => {
-  setLayout('chart'); segOn('dec-s', st.stage); const S = st.stage, [w, h] = box(), k = 'slum_pct', ix = order(k), top = ix.slice(0, 3), t2 = ix.slice(0, 2);
-  const share2 = t2.reduce((a, i) => a + W[i].slum_pop, 0) / t2.reduce((a, i) => a + W[i].population, 0), fr = niceFrac(share2);
-  const action = `${fr ? `${fr[0]} of ${fr[1]}` : p1(share2 * 100)} people in ${t2.map(i => plain(W[i])).join(' and ')} live in slums`;
-  const rainbow = i => `hsl(${i * 15},70%,55%)`;
+  setLayout('chart'); segOn('dec-s', st.stage); const S = st.stage, [w, h] = box(), Z = zoneStats(), z1 = Z[0];
+  const action = `${p0(z1.cafes)} of branded cafés sit on ${p0(z1.land)} of Gurugram's land`;
+  const rainbow = j => ['hsl(0,70%,55%)', 'hsl(120,55%,45%)', 'hsl(220,70%,55%)', 'hsl(45,90%,50%)'][j];
   const tag = tx(w - 24, 30, `Stage ${S} of 5 · ${DSTAGE[S]}`, { size: 15, weight: 700, fill: MUTE, anchor: 'end' });
-  let s;
+  let s = svgOpen(w, h) + tag;
   if (S <= 2) {
-    s = svgOpen(w, h) + (S === 1 ? `<rect x="6" y="44" width="${w - 12}" height="${h - 50}" fill="none" stroke="#888" stroke-width="1.5"/>` : '') + tag;
-    s += tx(w / 2, 82, 'Slum population by ward', { size: 24, weight: 700, anchor: 'middle' });
-    const L = 90, Rr = w - (S === 1 ? 250 : 40), Tt = 110, Bb = h - 230, bw = (Rr - L) / N, sy = v => Bb - v / 100 * (Bb - Tt);
-    if (S === 1) { for (let t = 0; t <= 100; t += 10) s += `<line x1="${L}" y1="${sy(t)}" x2="${Rr}" y2="${sy(t)}" stroke="#b5b5b5"/>`; s += `<rect x="${L}" y="${Tt}" width="${Rr - L}" height="${Bb - Tt}" fill="none" stroke="#666" stroke-width="1.5"/>`; s += `<rect x="${Rr + 20}" y="${Tt + 20}" width="200" height="44" fill="#fff" stroke="#666"/><rect x="${Rr + 34}" y="${Tt + 35}" width="16" height="14" fill="hsl(200,70%,55%)"/>` + tx(Rr + 58, Tt + 48, 'Slum population (%)', { size: 14 }); }
+    if (S === 1) s += `<rect x="6" y="44" width="${w - 12}" height="${h - 50}" fill="none" stroke="#888" stroke-width="1.5"/>`;
+    s += tx(w / 2, 82, 'Share by zone', { size: 24, weight: 700, anchor: 'middle' });
+    const L = 90, Rr = w - 290, Tt = 120, Bb = h - 170, gw = (Rr - L) / 3, bw = gw * 0.8 / 4, sy = v => Bb - v / 100 * (Bb - Tt);
+    if (S === 1) { for (let t = 0; t <= 100; t += 10) s += `<line x1="${L}" y1="${sy(t)}" x2="${Rr}" y2="${sy(t)}" stroke="#b5b5b5"/>`; s += `<rect x="${L}" y="${Tt}" width="${Rr - L}" height="${Bb - Tt}" fill="none" stroke="#666" stroke-width="1.5"/>`; }
+    if (S === 1) s += `<rect x="${Rr + 24}" y="${Tt + 10}" width="230" height="${4 * 28 + 18}" fill="#fff" stroke="#666"/>`;
+    ZB.forEach(([k, l], j) => { s += `<rect x="${Rr + 38}" y="${Tt + 26 + j * 28}" width="16" height="14" fill="${rainbow(j)}"/>` + tx(Rr + 62, Tt + 38 + j * 28, l, { size: 15 }); });
     for (let t = 0; t <= 100; t += S === 1 ? 10 : 20) s += tx(L - 10, sy(t) + 5, t, { size: 14, anchor: 'end' });
-    s += `<line x1="${L}" y1="${Tt}" x2="${L}" y2="${Bb}" stroke="#444"/><line x1="${L}" y1="${Bb}" x2="${Rr}" y2="${Bb}" stroke="#444"/>`;
-    s += tx(30, (Tt + Bb) / 2, 'Percent', { size: 15, anchor: 'middle', extra: ` transform="rotate(-90 30 ${(Tt + Bb) / 2})"` });
-    W.forEach((r, i) => { const x = L + i * bw + bw * 0.15; s += `<rect x="${x}" y="${sy(r[k])}" width="${bw * 0.7}" height="${Bb - sy(r[k])}" fill="${rainbow(i)}"/>` + tx(x + bw * 0.35, Bb + 14, sname(r), { size: 14, anchor: 'end', extra: ` transform="rotate(-45 ${x + bw * 0.35} ${Bb + 14})"` }); });
-    s += footer(w, h) + '</svg>';
+    s += `<line x1="${L}" y1="${Tt}" x2="${L}" y2="${Bb}" stroke="#444"/><line x1="${L}" y1="${Bb}" x2="${Rr}" y2="${Bb}" stroke="#444"/>` + tx(30, (Tt + Bb) / 2, 'Percent', { size: 15, anchor: 'middle', extra: ` transform="rotate(-90 30 ${(Tt + Bb) / 2})"` });
+    Z.forEach((z, g) => { ZB.forEach(([k], j) => { const x = L + g * gw + gw * 0.1 + j * bw; s += `<rect x="${x}" y="${sy(z[k])}" width="${bw * 0.9}" height="${Bb - sy(z[k])}" fill="${rainbow(j)}"/>`; }); const lx = L + g * gw + gw / 2; s += tx(lx, Bb + 20, z.z, { size: 15, anchor: 'end', extra: ` transform="rotate(-25 ${lx} ${Bb + 20})"` }); });
   } else {
-    const keys = S === 3 ? null : S === 4 ? [[RED, 'Three highest wards'], [GREY, 'Other wards'], [INK, 'Mumbai average', 'line']] : [[RED, 'Three highest wards'], [GREY, 'Other wards'], [INK, 'Mumbai average', 'line']];
-    const title = S === 5 ? action : 'Slum population by ward (%)', sub = S === 5 ? `Share of people living in slums, 2011: ${t2.map(i => `${sname(W[i])} ${p1(W[i][k])}`).join('; ')}. Next: ${sname(W[top[2]])}, ${p1(W[top[2]][k])}.` : null;
-    s = hbar({ title, sub, rows: ix.map(i => ({ i, label: sname(W[i]), v: W[i][k], col: S === 3 ? rainbow(i) : top.includes(i) ? RED : GREY, bold: S >= 4 && top.includes(i) })), fmt: p1, avg: S >= 4 ? { v: city(k), label: `Mumbai average: ${p1(city(k))}` } : null, key: keys, max: 100, y0: 68 });
-    s = s.replace('</svg>', tag + '</svg>');
+    const hd = header(w, S === 5 ? action : 'Share by zone', S === 5 ? `Within 1 km of a metro station: ${p1(z1.cafes)} of branded cafés (${z1.nc} of ${T.branded_cafes}) but ${p1(z1.land)} of the land and ${p1(z1.buildings)} of buildings.` : null, 28, 68); s += hd.s;
+    let y0 = hd.y + 6; if (S >= 4) { s += keyRow(28, y0 + 8, [[RED, 'Branded cafés within 1 km of metro'], [NAVY, 'Land within 1 km of metro'], [GREY, 'Everything else']]); y0 += 26; }
+    s += zoneBars(28, y0, w - 60, h - y0 - 46, (g, k) => S === 3 ? rainbow(ZB.findIndex(x => x[0] === k)) : g === 0 && k === 'cafes' ? RED : g === 0 && k === 'land' ? NAVY : GREY);
   }
-  $('#chart').innerHTML = s;
-  $('#dec-out').innerHTML = `<b>Stage ${S} of 5:</b> ${DSTAGE[S]}.` + (S === 5 ? `<br>Action title: <b>${esc(action)}</b> (${p1(share2 * 100)}).` : '');
+  s += footer(w, h) + '</svg>'; $('#chart').innerHTML = s;
+  $('#dec-out').innerHTML = `<b>Stage ${S} of 5:</b> ${DSTAGE[S]}.` + (S === 5 ? `<br>Action title: <b>${esc(action)}</b>.` : '');
 };
 
+// ---------- insights, Big Idea, arc ----------
+const distinctAreas = (ids, n) => [...new Set(ids.map(i => short(i)))].slice(0, n);
 function buildInsights() {
-  const sp = order('slum_pct'), mn = W[sp[sp.length - 1]].slum_pct, minW = W.map((r, i) => i).filter(i => W[i].slum_pct === mn), mxI = sp[0], t2 = sp.slice(0, 2);
-  const t2pop = t2.reduce((a, i) => a + W[i].slum_pop, 0), Zs = ZONES.map(z => agg(W.filter(r => r.zone === z))), zs = Zs.map(t => M.slum_pct.c(t));
-  const { r } = corr(vals('slum_pct'), vals('female_literacy_pct')), fl = order('female_literacy_pct', false)[0];
-  const hr = order('homeless_per_10k'), h3 = hr.slice(0, 3), h3c = h3.reduce((a, i) => a + W[i].homeless, 0), h3p = h3.reduce((a, i) => a + W[i].population, 0);
-  const lp = order('slum_pop'), sp2 = lp.slice(0, 2);
-  B.ask = B.ask || `Approve a ward-by-ward plan that starts in ${t2.map(i => sname(W[i])).join(' and ')}`;
+  const Z = zoneStats(), z1 = Z[0], z3 = Z[2];
+  const top10 = order('branded_cafes').slice(0, 10), t10c = top10.reduce((s, i) => s + W[i].branded_cafes, 0);
+  const dense = order('buildings', true, W.map((r, i) => i).filter(i => W[i].buildings >= 1000)), dn0 = dense.filter(i => W[i].branded_cafes === 0), dnB = dn0.reduce((s, i) => s + W[i].buildings, 0);
+  const grow = order('new_built_share').slice(0, 60), gt = agg(grow.map(i => W[i]));
+  const urban10 = dn0.filter(i => W[i].metro_km <= 10).slice(0, 10);
+  B.ask = B.ask || `Approve 10 sites where people live: ${listJoin(distinctAreas(dn0, 3))} first, then the growth sectors`;
+  const G = { top10, t10c, dense, dn0, dnB, grow, gt, Z, urban10 };
+  const bar = (ids, k, f) => ids.slice(0, 7).map(i => ({ l: short(i), v: W[i][k], f, on: true }));
   ins = [
-    { name: 'The gap: slum share by ward', metric: 'slum_pct', fact: `slum share runs from ${Math.round(mn)}% in Wards ${listJoin(minW.map(i => W[i].ward))} to ${Math.round(W[mxI].slum_pct)}% in ${sname(W[mxI])}`, action: `${Math.round(W[mxI].slum_pct)}% of people in ${plain(W[mxI])} live in slums; in South Mumbai, ${Math.round(mn)}%`, heads: [`The city average of ${p1(city('slum_pct'))} hides an ${Math.round(W[mxI].slum_pct / mn)}-fold gap between wards`, `${plain(W[mxI])}: ${Math.round(W[mxI].slum_pct)}% in slums, the highest of 24 wards`, `Start where the share is highest: ${t2.map(i => code(W[i])).join(' and ')}`], start: t2 },
-    { name: 'Concentration: two wards, most in slums', metric: 'slum_pct', fact: `in ${t2.map(i => sname(W[i])).join(' and ')}, ${p1(t2pop / t2.reduce((a, i) => a + W[i].population, 0) * 100)} of people live in slums: ${lakh(t2pop)} people`, action: `${lakh(t2pop)} slum dwellers live in just two wards: ${t2.map(i => plain(W[i])).join(' and ')}`, heads: [`Two wards hold ${p1(t2pop / T.slum_pop * 100)} of Mumbai's slum dwellers`, `${t2.map(i => plain(W[i])).join(' and ')}: more than 5 in 6 people live in slums`, `One plan for two wards reaches ${lakh(t2pop)} people`], start: t2 },
-    { name: 'Relationship: slums and female literacy', metric: 'female_literacy_pct', fact: `wards with more slum dwellers have lower female literacy (r = ${rtxt(r)}); ${sname(W[fl])} is lowest at ${p1(W[fl].female_literacy_pct)} against ${p1(city('female_literacy_pct'))} citywide`, action: `Where slums are most common, fewer women can read: ${plain(W[fl])} ${p1(W[fl].female_literacy_pct)}`, heads: [`${plain(W[fl])} has the lowest female literacy in Mumbai: ${p1(W[fl].female_literacy_pct)}`, `More slums, fewer literate women: r = ${rtxt(r)} across 24 wards`, `Basic services and girls' schooling belong in the same plan`], start: [fl, t2.find(i => i !== fl) ?? t2[1]] },
-    { name: 'Homeless: where the jobs are', metric: 'homeless_per_10k', fact: `Wards ${listJoin(h3.map(i => W[i].ward))} in South Mumbai have ${Math.round(Math.min(...h3.map(i => W[i].homeless_per_10k)))} to ${Math.round(W[h3[0]].homeless_per_10k)} homeless people per 10,000 residents, against ${Math.round(city('homeless_per_10k'))} citywide`, action: `South Mumbai shelters ${p1(h3c / T.homeless * 100)} of the city's homeless with ${p1(h3p / T.population * 100)} of its people`, heads: [`The homeless sleep where the jobs are: South Mumbai`, `Ward ${W[h3[0]].ward} (${locs(W[h3[0]], 2).join(', ')}): ${Math.round(W[h3[0]].homeless_per_10k)} homeless per 10,000 people`, `Night shelters belong in Wards ${listJoin(h3.map(i => W[i].ward))}`], start: h3 },
-    { name: 'Zones: East against the Island City', metric: 'slum_pct', fact: `${p1(zs[2])} of people in the Eastern Suburbs live in slums, against ${p1(zs[0])} in the Island City and ${p1(zs[1])} in the Western Suburbs`, action: `The Eastern Suburbs carry the heaviest slum share: ${p1(zs[2])}`, heads: [`Eastern Suburbs: ${p1(zs[2])} in slums, the highest of the three parts of Mumbai`, `Island City: ${p1(zs[0])}, the lowest`, `Inside the East, ${t2.filter(i => W[i].zone === 'Eastern Suburbs').map(i => code(W[i])).join(' and ')} stand out`], start: t2 },
+    { name: 'Cafés cluster in a few hexagons', fact: `just 10 hexagons, ${p1(10 / N * 100)} of the district, hold ${p0(t10c / T.branded_cafes * 100)} of Gurugram's ${T.branded_cafes} branded cafés (${listJoin(distinctAreas(top10, 4))})`, action: `${p0(t10c / T.branded_cafes * 100)} of branded cafés are packed into 10 hexagons`, heads: [`10 hexagons hold ${p0(t10c / T.branded_cafes * 100)} of branded cafés`, `${short(top10[0])} alone has ${W[top10[0]].branded_cafes}`, `Opening an 11th café next door adds little reach`], start: top10, bars: bar(top10, 'branded_cafes', inr), bt: 'Branded cafés, top hexagons' },
+    { name: 'Cafés chase the metro', fact: `${p0(z1.cafes)} of branded cafés (${z1.nc}) sit within 1 km of a metro station, on ${p1(z1.land)} of the land where only ${p1(z1.buildings)} of buildings are`, action: `${p0(z1.cafes)} of branded cafés sit on ${p0(z1.land)} of Gurugram's land`, heads: [`${p0(z1.cafes)} of branded cafés are within 1 km of the metro`, `That strip is ${p1(z1.land)} of the land and ${p1(z1.buildings)} of buildings`, `The chains are competing for the same few streets`], start: Z[0].ids, bars: [{ l: 'Cafés within 1 km', v: z1.cafes, f: p1, on: true }, { l: 'Land within 1 km', v: z1.land, f: p1 }, { l: 'Buildings within 1 km', v: z1.buildings, f: p1 }, { l: 'Shops within 1 km', v: z1.shops, f: p1 }], bt: 'Share of Gurugram' },
+    { name: 'People live elsewhere', fact: `${p0(z3.buildings)} of Gurugram's buildings are more than 3 km from a metro station, but only ${p0(z3.cafes)} of branded cafés are`, action: `${p0(z3.buildings)} of buildings, ${p0(z3.cafes)} of cafés: the chains are missing where people live`, heads: [`${p0(z3.buildings)} of buildings are more than 3 km from the metro`, `Only ${p0(z3.cafes)} of branded cafés are there`, `Follow the people, not the competitors`], start: Z[2].ids, bars: [{ l: 'Buildings, 3 km+', v: z3.buildings, f: p1 }, { l: 'Cafés, 3 km+', v: z3.cafes, f: p1, on: true }, { l: 'Buildings, within 1 km', v: z1.buildings, f: p1 }, { l: 'Cafés, within 1 km', v: z1.cafes, f: p1, on: true }], bt: 'Share of Gurugram' },
+    { name: 'The dense old city is unserved', fact: `${dn0.length} of the ${dense.length} densest hexagons (1,000+ buildings) have no branded café: ${lakh(dnB)} buildings in ${listJoin(distinctAreas(dn0, 4))}`, action: `${dn0.length} of Gurugram's ${dense.length} densest hexagons have no branded café`, heads: [`${dn0.length} of the ${dense.length} densest hexagons have no branded café`, `${lakh(dnB)} buildings with no branded café nearby`, `Start in ${listJoin(distinctAreas(dn0, 3))}`], start: urban10, bars: bar(dn0, 'buildings', inr), bt: 'Buildings in the densest hexagons with no branded café' },
+    { name: 'The growth frontier is unserved', fact: `the ${grow.length} fastest-growing hexagons (2017 to 2024) have ${inr(gt.buildings)} buildings, ${inr(gt.shops)} shops and just ${gt.branded_cafes} branded cafés`, action: `Gurugram's fastest-growing hexagons have ${gt.branded_cafes} branded cafés`, heads: [`${grow.length} fastest-growing hexagons: ${inr(gt.buildings)} buildings, ${gt.branded_cafes} branded cafés`, `${listJoin(distinctAreas(grow, 4))}: tomorrow's customers`, `Book sites before the competitors arrive`], start: grow, bars: bar(grow, 'new_built_share', p1), bt: 'Land newly built 2017 to 2024' },
   ];
+  window.__G = G; return G;
 }
 const lcFirst = s => s ? s[0].toLowerCase() + s.slice(1) : s;
-const bigIdea = I => `${B.aud}: ${I.fact}. ${B.ask}, so the money reaches the wards where need is greatest.`;
+const bigIdea = I => `${B.aud}: ${I.fact}. ${B.ask}.`;
 R.bigidea = () => {
   setLayout('chart'); $('#bi-ins').value = st.insight; const I = ins[st.insight];
   $('#bi-brief').innerHTML = `<b>Audience:</b> ${esc(B.aud)}<br><b>Decision:</b> ${esc(B.dec)}<br><b>Ask:</b> ${esc(B.ask)}`;
   $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">One sentence: the Big Idea</div><div class="st-h2">Audience + insight + ask. Insight chosen: ${esc(I.name.toLowerCase())}.</div>
-  <div class="st-card acc" style="margin-bottom:18px"><h4>The Big Idea</h4><div class="big" style="font-size:28px">${esc(bigIdea(I))}</div></div>
+  <div class="st-card acc" style="margin-bottom:18px"><h4>The Big Idea</h4><div class="big" style="font-size:27px">${esc(bigIdea(I))}</div></div>
   <div class="st-cards" style="grid-template-columns:1fr 1fr;margin-bottom:18px">
-    <div class="st-card bad"><h4>Topic title <span class="st-tag no">✗ says what</span></h4><div class="big">Slum population by ward, 2011</div></div>
+    <div class="st-card bad"><h4>Topic title <span class="st-tag no">✗ says what</span></h4><div class="big">Branded cafés by hexagon, Gurugram</div></div>
     <div class="st-card"><h4>Action title <span class="st-tag ok">✓ says so what</span></h4><div class="big">${esc(I.action)}</div></div>
   </div>
   <div class="st-card"><h4>Three headline titles for three slides</h4>${I.heads.map((t, j) => `<div class="big" style="font-size:23px;margin:6px 0"><span style="color:${RED};font-weight:800">${j + 1}.</span> ${esc(t)}</div>`).join('')}</div>
   <div class="st-src">${SRC}</div></div>`;
 };
-
 R.arc = () => {
   setLayout('chart'); $('#arc-ins').value = st.insight; const I = ins[st.insight], [w, h] = box();
-  const cw = (w - 56 - 40) / 3, th = Math.min(300, h - 500);
-  const P5 = pal(5), cs = classify(vals('slum_pct'), 'quantile', 5);
-  const thumbMap = (fill, stroke) => `<svg width="${cw - 40}" height="${th}" viewBox="0 0 ${cw - 40} ${th}">${svgMap(cw - 40, th, fill, stroke, 4, 0.6)}</svg>`;
-  const mk = I.metric, ix = order(mk), pick = [...ix.slice(0, 4), ...ix.slice(-3)];
-  const bars = (() => { const bw2 = cw - 40, rh = th / pick.length, mx = Math.max(...pick.map(i => W[i][mk])); let s = `<svg width="${bw2}" height="${th}" style="font-family:${FONT}">`; pick.forEach((i, q) => { const lw = 150, v = W[i][mk], bl = (bw2 - lw - 70) * v / mx, on = I.start.includes(i); s += tx(lw - 6, q * rh + rh / 2 + 5, code(W[i]) + ' ' + locs(W[i], 1)[0], { size: 14, anchor: 'end', weight: on ? 700 : 400 }) + `<rect x="${lw}" y="${q * rh + rh * 0.18}" width="${bl}" height="${rh * 0.64}" fill="${on ? RED : GREY}"/>` + tx(lw + bl + 5, q * rh + rh / 2 + 5, M[mk].f(v), { size: 14 }); }); return s + '</svg>'; })();
-  const card = (n, lab, txt, vis, cls = '') => `<div class="st-card ${cls}" style="display:flex;flex-direction:column"><h4>${n} · ${lab}</h4><div style="display:flex;justify-content:center;margin:6px 0 10px">${vis}</div><div class="big" style="font-size:20px">${esc(txt)}</div></div>`;
+  const cw = (w - 56 - 40) / 3, th = Math.min(250, h - 560), tw2 = cw - 40;
+  const Cb = chor('buildings', 'jenks', 5);
+  const thumbMap = (fill) => `<svg width="${tw2}" height="${th}" viewBox="0 0 ${tw2} ${th}">${svgMap(tw2, th, fill, null, 2, 0.3)}</svg>`;
+  const bars = (() => { const rh = th / I.bars.length, mx = Math.max(...I.bars.map(b => b.v)), lw = Math.min(190, Math.max(...I.bars.map(b => tw(b.l, 14))) + 8); let s = `<svg width="${tw2}" height="${th}" style="font-family:${FONT}">`; I.bars.forEach((b, q) => { const bl = (tw2 - lw - 64) * b.v / mx; s += tx(lw - 6, q * rh + rh / 2 + 5, b.l, { size: 14, anchor: 'end', weight: b.on ? 700 : 400 }) + `<rect x="${lw}" y="${q * rh + rh * 0.18}" width="${Math.max(1, bl)}" height="${rh * 0.64}" fill="${b.on ? RED : GREY}"/>` + tx(lw + bl + 5, q * rh + rh / 2 + 5, b.f(b.v), { size: 14 }); }); return s + '</svg>'; })();
+  const card = (n, lab, txt, vis, cls = '') => `<div class="st-card ${cls}" style="display:flex;flex-direction:column"><h4>${n} · ${lab}</h4><div style="display:flex;justify-content:center;margin:6px 0 10px">${vis}</div><div class="big" style="font-size:19px">${esc(txt)}</div></div>`;
+  const tgt = ins[3].start.concat(ins[4].start.slice(0, 10));
   $('#chart').innerHTML = `<div class="st-panel"><div class="st-h1">Setup, tension, resolution</div><div class="st-h2">Three frames, built from your brief and the insight: ${esc(I.name.toLowerCase())}.</div>
    <div class="st-cards" style="grid-template-columns:1fr 1fr 1fr">
-    ${card(1, 'Setup: what we all accept', `Mumbai: ${lakh(T.population)} people in 24 wards; ${p1(city('slum_pct'))} live in slums.`, thumbMap(i => P5[cs.cls[i]]))}
-    ${card(2, 'Tension: what is wrong with that picture', I.fact[0].toUpperCase() + I.fact.slice(1) + '.', bars)}
-    ${card(3, 'Resolution: what to do', B.ask + '.', thumbMap(i => I.start.includes(i) ? RED : '#eef1f6', i => I.start.includes(i) ? '#7a0000' : '#9aa3b2'), 'acc')}
+    ${card(1, 'Setup: what we all accept', `Gurugram: ${lakh(T.buildings)} buildings, ${inr(T.shops)} shops and eateries, ${T.branded_cafes} branded cafés.`, thumbMap(i => Cb.cls[i] >= 0 ? Cb.P[Cb.cls[i]] : ZERO))}
+    ${card(2, 'Tension: what is wrong with that picture', cap(I.fact) + '.', bars)}
+    ${card(3, 'Resolution: what to do', B.ask + '.', thumbMap(i => I.start.includes(i) ? RED : '#e6eaf2'), 'acc')}
    </div>
-   <div class="st-abt">Mumbai has ${lakh(T.population)} people in 24 wards <b>AND</b> ${p1(city('slum_pct'))} of them live in slums, <b>BUT</b> ${esc(I.fact)}, <b>THEREFORE</b> ${esc(lcFirst(B.ask))}.</div>
-   <div class="st-src" style="display:flex;gap:22px;align-items:center;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center"><i style="width:20px;height:13px;background:${P5[4]};display:inline-block;border:1px solid #888"></i><i style="width:20px;height:13px;background:${P5[0]};display:inline-block;border:1px solid #888"></i> Map 1: slum share, darker = higher</span><span style="display:inline-flex;gap:6px;align-items:center"><i style="width:20px;height:13px;background:${RED};display:inline-block"></i> Wards to start with</span><span>${SRC}</span></div></div>`;
+   <div class="st-abt">Gurugram has ${lakh(T.buildings)} buildings <b>AND</b> ${T.branded_cafes} branded cafés, <b>BUT</b> ${esc(I.fact)}, <b>THEREFORE</b> ${esc(lcFirst(B.ask))}.</div>
+   <div class="st-src" style="display:flex;gap:22px;align-items:center;flex-wrap:wrap"><span style="display:inline-flex;gap:6px;align-items:center"><i style="width:20px;height:13px;background:${SEQ[6]};display:inline-block;border:1px solid #888"></i><i style="width:20px;height:13px;background:${SEQ[1]};display:inline-block;border:1px solid #888"></i> Map 1: buildings per hexagon, darker = more</span><span style="display:inline-flex;gap:6px;align-items:center"><i style="width:20px;height:13px;background:${RED};display:inline-block"></i> Map 3: hexagons to act on</span><span>${SRC}</span></div></div>`;
 };
 
+// ---------- story mode ----------
 function tellFrames() {
-  const sp = order('slum_pct'), mn = W[sp[sp.length - 1]].slum_pct, minW = W.map((r, i) => i).filter(i => W[i].slum_pct === mn), mx = sp[0], t2 = sp.slice(0, 2);
-  const fl = order('female_literacy_pct', false)[0], { r } = corr(vals('slum_pct'), vals('female_literacy_pct'));
-  const hr = order('homeless_per_10k'), h3 = hr.slice(0, 3), h3c = h3.reduce((a, i) => a + W[i].homeless, 0), h3p = h3.reduce((a, i) => a + W[i].population, 0);
-  const t2pop = t2.reduce((a, i) => a + W[i].slum_pop, 0), south = minW.every(i => W[i].zone === 'Island City') ? 'South Mumbai' : 'Wards ' + listJoin(minW.map(i => W[i].ward));
-  const FIX = [[0, 20], [20, 40], [40, 60], [60, 80], [80, 100]], FP = pal(5), fixCls = v => Math.min(4, Math.floor(v / 20));
-  const fixKey = '<b>Share living in slums</b>' + FIX.map((b, j) => `<div class="sw"><i style="background:${FP[j]}"></i>${b[0]}% to ${b[1]}%</div>`).reverse().join('');
+  const G = window.__G, Z = G.Z, z1 = Z[0], z3 = Z[2], t10s = G.t10c / T.branded_cafes * 100;
+  const caf = W.map((r, i) => i).filter(i => W[i].branded_cafes > 0);
+  const cafCircles = (maxR = 20) => setCircles(circlesFor('branded_cafes', maxR, () => RED));
+  const cafKey = () => circleLegend('branded_cafes', 20, 'Branded cafés: circle area', RED);
   return [
-    { t: `Mumbai: ${lakh(T.population)} people, 24 wards`, num: lakh(T.population).replace(' crore', ''), numl: `crore people in 24 municipal wards (Census 2011)`, p: [`${inr(T.households)} households on ${Math.round(T.area_km2)} km²: about ${inr(city('density_per_km2'))} people per km².`], go: () => { paint(() => '#dfe5f1', () => .8); setLabels(i => [lab2(i), INK, 1]); return null; }, key: `<div class="sw"><i style="background:#dfe5f1"></i>One municipal ward (labelled with its main locality)</div>` },
-    { t: 'Half live in slums', num: p1(city('slum_pct')), numl: `of Mumbai's people lived in slums in 2011: ${lakh(T.slum_pop)} people`, p: [`Slums are not the edge of Mumbai. They are half of it.`], go: () => { paint(i => FP[fixCls(W[i].slum_pct)]); return null; }, key: fixKey },
-    { t: `But not evenly: ${Math.round(mn)}% in ${south}, ${Math.round(W[mx].slum_pct)}% in ${plain(W[mx])}`, num: `${Math.round(W[mx].slum_pct / mn)}×`, numl: 'the gap between the lowest and the highest ward', p: [`Wards ${listJoin(minW.map(i => W[i].ward))} (${listJoin(minW.map(i => locs(W[i], 1)[0]))}): ${p1(mn)}.`, `Ward ${fname(W[mx])}: ${p1(W[mx].slum_pct)}.`], go: () => { paint(i => minW.includes(i) ? NAVY : i === mx ? RED : FP[fixCls(W[i].slum_pct)], i => minW.includes(i) || i === mx ? .85 : .55); setLabels(i => minW.includes(i) ? [lab2(i), NAVY, 1] : i === mx ? [lab2(i), RED, 0] : null); return null; }, key: sw(RED, `Highest: ${sname(W[mx])}`) + sw(NAVY, `Lowest: Wards ${listJoin(minW.map(i => W[i].ward))}`) + sw(FP[2], 'Other wards, shaded by slum share') },
-    { t: `Where slums are most common, women's literacy is lowest`, num: p1(W[fl].female_literacy_pct), numl: `of women in ${sname(W[fl])} can read and write: the lowest of 24 wards. Mumbai: ${p1(city('female_literacy_pct'))}.`, p: [`Across the 24 wards, the higher the slum share, the lower female literacy (r = ${rtxt(r)}). A link, not proof of cause.`], go: () => { const { c, P } = choropleth('female_literacy_pct', 'quantile', 5); paint(i => P[4 - c.cls[i]]); setHL([fl]); setLabels(i => i === fl ? [lab2(i), RED, 0] : null); this_key = `<b>Female literacy (darker = lower)</b>` + [...c.ranges.keys()].map(j => sw(P[4 - j], `${p1(c.ranges[j][0])} to ${p1(c.ranges[j][1])}`)).join('') + sw('#fff;border:3px solid ' + RED, `Lowest: ${sname(W[fl])}`); return W.map((_, i) => i).filter(i => W[i].zone === 'Eastern Suburbs'); }, key: () => this_key },
-    { t: 'The homeless sleep where the jobs are: South Mumbai', num: inr(W[h3[0]].homeless_per_10k), numl: `homeless people per 10,000 residents in ${sname(W[h3[0]])}. Mumbai: ${Math.round(city('homeless_per_10k'))}.`, p: [`Wards ${listJoin(h3.map(i => W[i].ward))} have ${p1(h3p / T.population * 100)} of Mumbai's people but ${p1(h3c / T.homeless * 100)} of its ${inr(T.homeless)} homeless.`], go: () => { paint(() => '#eef1f6', () => .7); setCircles(circlesFor('homeless', 46, i => h3.includes(i) ? RED : NAVY)); setLabels(i => h3.includes(i) ? [lab2(i), RED, 0] : null); return W.map((_, i) => i).filter(i => W[i].zone === 'Island City'); }, key: () => circleLegend('homeless', 46, 'Homeless people: circle area').replace('<b>', '<b style="display:block;margin-bottom:4px">') + sw(RED, `Highest rates: Wards ${listJoin(h3.map(i => W[i].ward))}`, 'ring') },
-    { t: `So: target by ward, not by city average. Start with ${t2.map(i => code(W[i])).join(' and ')}`, num: lakh(t2pop), numl: `slum dwellers in ${t2.map(i => sname(W[i])).join(' and ')}: ${p1(t2pop / T.slum_pop * 100)} of Mumbai's total`, p: [`One ward-by-ward plan, starting where the share is highest.`], go: () => { paint(i => t2.includes(i) ? RED : '#eef1f6', i => t2.includes(i) ? .8 : .6); setLabels(i => t2.includes(i) ? [lab2(i), '#7a0000', 0] : null); return t2; }, key: sw(RED, `Start here: ${t2.map(i => sname(W[i])).join(' and ')}`) + sw('#eef1f6', 'Other wards') },
+    { t: `Gurugram: ${lakh(T.buildings)} buildings, ${inr(Math.round(T.shops / 1000) * 1000)} shops, ${T.branded_cafes} branded cafés`, num: lakh(T.buildings), numl: `buildings in Gurugram district (${inr(N)} hexagons of about 0.74 km²)`, p: [`${inr(T.shops)} shops and eateries, and ${T.branded_cafes} branded cafés from seven national chains.`], go: () => { const C = chor('buildings', 'jenks', 5); paintChor(C); frameKey = chorLegend('buildings', C, 'Buildings per hexagon'); return null; } },
+    { t: `Cafés cluster: 10 hexagons hold ${p0(t10s)} of branded cafés`, num: p0(t10s), numl: `of branded cafés (${G.t10c} of ${T.branded_cafes}) in 10 hexagons: ${p1(10 / N * 100)} of the district`, p: [`${listJoin(distinctAreas(G.top10, 4))}.`], go: () => { paint(i => G.top10.includes(i) ? '#f4c7c7' : ZERO, i => G.top10.includes(i) ? .8 : .4); cafCircles(24); setLabels(G.top10.slice(0, 5).filter((i, q, a) => a.findIndex(j => short(j) === short(i)) === q), RED); frameKey = cafKey() + sw('#f4c7c7', 'The 10 hexagons with the most'); return G.top10; } },
+    { t: 'They chase the metro', num: p0(z1.cafes), numl: `of branded cafés (${z1.nc}) sit within 1 km of a metro station, on ${p1(z1.land)} of the land`, p: [`Only ${p1(z1.buildings)} of buildings are there (and ${p1(z1.shops)} of shops).`], go: () => { paint(i => ZC[W[i].zone], i => W[i].zone === ZONES[2] ? .35 : .75); cafCircles(18); frameKey = cafKey() + ZONES.map(z => sw(ZC[z], z)).join(''); return Z[0].ids.concat(Z[1].ids); } },
+    { t: 'But people live elsewhere', num: p0(z3.buildings), numl: 'of buildings are more than 3 km from a metro station', p: [`Only ${p0(z3.cafes)} of branded cafés are there.`], go: () => { const C = chor('buildings', 'jenks', 5); paintChor(C); cafCircles(16); frameKey = chorLegend('buildings', C, 'Buildings per hexagon') + sw(RED, 'Branded cafés', 'ring'); return null; } },
+    { t: 'The dense old city and the new frontier are unserved', num: `${G.dn0.length} of ${G.dense.length}`, numl: `densest hexagons (1,000+ buildings) have no branded café: ${lakh(G.dnB)} buildings`, p: [`The ${G.grow.length} fastest-growing hexagons (2017 to 2024) have ${inr(G.gt.buildings)} buildings, ${inr(G.gt.shops)} shops and just ${G.gt.branded_cafes} branded cafés.`], go: () => { paint(i => G.dn0.includes(i) ? RED : G.grow.includes(i) ? NAVY : ZERO, i => G.dn0.includes(i) || G.grow.includes(i) ? .8 : .35); frameKey = sw(RED, `Dense (1,000+ buildings), no branded café: ${G.dn0.length}`) + sw(NAVY, `Fastest-growing 2017 to 2024: ${G.grow.length}`) + sw(ZERO, 'Other hexagons'); return null; } },
+    { t: 'Follow the people, not the competitors', num: '10', numl: `outlets: old Gurugram's dense sectors first, then the growth sectors`, p: [`First: ${listJoin(distinctAreas(G.dn0, 4))}.`, `Then: ${listJoin(distinctAreas(G.grow, 4))}. Check each site on the ground.`], go: () => { const d10 = G.urban10; paint(i => d10.includes(i) ? RED : G.grow.includes(i) ? '#9db1d4' : ZERO, i => d10.includes(i) || G.grow.includes(i) ? .85 : .35); setLabels(d10.filter((i, q, a) => a.findIndex(j => short(j) === short(i)) === q).slice(0, 5), '#7a0000'); frameKey = sw(RED, 'First: the 10 densest urban hexagons with no branded café') + sw('#9db1d4', 'Next: the 60 fastest-growing hexagons') + sw(ZERO, 'Other hexagons'); return d10; } },
   ];
 }
-let this_key = '';
+let frameKey = '';
 R.tell = () => {
-  setLayout('map'); segOn('tell-f', st.frame); const F = tellFrames(), f = F[st.frame - 1];
+  setLayout('map'); segOn('tell-f', st.frame); const f = tellFrames()[st.frame - 1];
   const target = f.go(); const card = $('#tellcard'); card.hidden = false;
-  const cardW = card.offsetWidth || 560, pad = { top: 40, bottom: 40, right: 50, left: cardW + 70 };
-  card.innerHTML = `<div class="fno">Frame ${st.frame} of 6</div><h1>${esc(f.t)}</h1><div class="num">${esc(f.num)}</div><div class="numl">${esc(f.numl)}</div>${f.p.map(t => `<p>${esc(t)}</p>`).join('')}<div class="key">${typeof f.key === 'function' ? f.key() : f.key}</div><div class="src">${SRC}</div><div class="nav"><button class="ga-ghostbtn" id="t-prev">← Prev</button><button class="ga-primary" id="t-next">Next →</button></div>`;
+  card.innerHTML = `<div class="fno">Frame ${st.frame} of 6</div><h1>${esc(f.t)}</h1><div class="num">${esc(f.num)}</div><div class="numl">${esc(f.numl)}</div>${f.p.map(t => `<p>${esc(t)}</p>`).join('')}<div class="key">${frameKey}${METRO_KEY}</div><div class="src">${SRC}</div><div class="nav"><button class="ga-ghostbtn" id="t-prev">← Prev</button><button class="ga-primary" id="t-next">Next →</button></div>`;
   $('#t-prev').onclick = () => { st.frame = Math.max(1, st.frame - 1); show('tell'); }; $('#t-next').onclick = () => { st.frame = Math.min(6, st.frame + 1); show('tell'); };
-  fit(target, pad, 1200); hoverKey = 'slum_pct';
+  const cw = card.offsetWidth || 600; fit(target, { top: 50, bottom: 50, right: 60, left: cw + 80 }, 1000); hoverKey = 'buildings';
 };
 
+// ---------- your turn ----------
+const BRIEFS = {
+  bank: { d: 'where to open 5 new branches', t: 'A private bank choosing 5 new branches', a: 'Head of retail branches', m: 'buildings', q: 'Where do many households live but few shops and services operate yet?' },
+  pharmacy: { d: 'where to open 8 new stores', t: 'A pharmacy chain choosing 8 new stores', a: 'Chief operating officer, pharmacy chain', m: 'shops_per_1000_bldg', q: 'Where are there many homes per shop, so a pharmacy is far away?' },
+  qcommerce: { d: 'where to put 6 dark stores', t: 'A quick-commerce company choosing 6 dark stores for 10-minute delivery', a: 'City head, quick-commerce company', m: 'buildings', q: 'Where are enough homes packed close together to deliver in 10 minutes?' },
+  ev: { d: 'where to build 10 fast-charging hubs', t: 'An EV-charging company choosing 10 fast-charging hubs', a: 'Expansion head, EV-charging company', m: 'new_built_share', q: 'Where is Gurugram growing fastest, ahead of the chargers?' },
+};
 R.yourturn = () => {
-  segOn('yt-v', st.view); const G = gur;
-  const facts = `<b>${G.n}</b> cafés and restaurants. <b>${p1(G.s500)}</b> are within 500 m of a metro station (${G.c500}); <b>${p1(G.s1k)}</b> within 1 km (${G.c1k}). Half are within <b>${(G.med / 1000).toFixed(2)} km</b> of a station.`;
-  $('#yt-out').innerHTML = facts;
+  segOn('yt-v', st.view); $('#yt-b').value = st.brief; $('#yt-m').value = st.metric; $('#yt-c').checked = st.cafes;
+  const Bf = BRIEFS[st.brief], k = st.metric, m = M[k], G = gur;
+  const facts = `OpenStreetMap cafés and restaurants: <b>${p1(G.s500)}</b> within 500 m of a metro station, <b>${p1(G.s1k)}</b> within 1 km (${G.n} in all).`;
+  $('#yt-out').innerHTML = `<b>${esc(Bf.t)}.</b> ${esc(Bf.q)}<br>Suggested map: ${esc(M[Bf.m].l.toLowerCase())}.` + (st.cafes ? '<br>' + facts : '');
   if (st.view === 'template') {
     setLayout('chart');
     const box2 = (lab, ph, rows = 2) => `<label>${lab}</label><textarea rows="${rows}" placeholder="${esc(ph)}"></textarea>`;
-    $('#chart').innerHTML = `<div class="st-panel st-ws"><div class="st-h1">Group worksheet: Gurugram's cafés and the metro</div><div class="st-h2">What the data says: ${G.n} cafés and restaurants; ${p1(G.s500)} within 500 m of a metro station, ${p1(G.s1k)} within 1 km; ${p1(100 - G.s1k)} more than 1 km away.</div>
+    $('#chart').innerHTML = `<div class="st-panel st-ws"><div class="st-h1">Group worksheet: ${esc(Bf.t)}</div><div class="st-h2">The data: ${inr(N)} hexagons; ${lakh(T.buildings)} buildings; ${inr(T.shops)} shops and eateries; ${p1(zoneStats()[2].buildings)} of buildings are more than 3 km from a metro station.</div>
     <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:34px;flex:1">
-     <div>${box2('Audience: who will listen? (GMDA, HMRTC, a café chain, a developer)', 'e.g. Chief Executive Officer, GMDA')}${box2('Decision: what must they decide?', 'e.g. where to allow mixed-use and cafés near new stations')}${box2('Ask: what do you want them to do?', 'e.g. approve ...')}${box2('Insight: the one number that matters', 'e.g. only about half of cafés are within 1 km of a station')}${box2('Big Idea: one sentence (audience + insight + ask)', 'Write it so it could be the subject line of an email', 3)}</div>
+     <div>${box2('Audience: who will listen?', 'e.g. ' + Bf.a)}${box2('Decision: what must they decide?', 'e.g. ' + Bf.d)}${box2('Ask: what do you want them to do?', 'e.g. approve these sites ...')}${box2('Insight: the one number that matters', Bf.q)}${box2('Big Idea: one sentence (audience + insight + ask)', 'Write it so it could be the subject line of an email', 3)}</div>
      <div><label>Storyboard: three frames (sketch a chart or map in each)</label>
       <div style="display:grid;grid-template-rows:1fr 1fr 1fr;gap:12px;height:calc(100% - 40px)">
        ${['1 · Setup: what everyone accepts', '2 · Tension: what the data shows', '3 · Resolution: what to do'].map(t => `<div style="border:2px dashed #9aa3b2;border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:1fr 1.2fr;gap:14px"><div><b style="color:${NAVY};font-size:17px">${t}</b><textarea rows="3" placeholder="Headline (an action title)"></textarea></div><div style="border:1px solid #d9dee7;border-radius:8px;background:#fafbfd;display:grid;place-items:center;color:#9aa3b2;font-size:16px">sketch: chart or map</div></div>`).join('')}
       </div></div></div>
-    <div class="st-src">And–But–Therefore: Gurugram has ___ AND ___, BUT ___, THEREFORE ___. · ${SRC_G}</div></div>`;
+    <div class="st-src">And–But–Therefore: Gurugram has ___ AND ___, BUT ___, THEREFORE ___. · ${SRC_W}</div></div>`;
     return;
   }
-  setLayout('split', '44%'); wardLayers(false);
-  const [w, h] = box(); let s = svgOpen(w, h);
-  const hd = header(w, "Is Gurugram's café economy following the metro?", `${G.n} cafés and restaurants (OpenStreetMap). Straight-line distance from each to the nearest metro station.`); s += hd.s;
-  let y = hd.y + 12; const nw = Math.max(tw(p1(G.s500), 50, 800), tw(p1(G.s1k), 50, 800)) + 16;
-  [[p1(G.s500), RED, 'within 500 m', 'about a 6-minute walk'], [p1(G.s1k), NAVY, 'within 1 km', 'about a 12-minute walk']].forEach(([n, col, a, b2], q) => { const yy = y + 50 + q * 66; s += tx(28, yy, n, { size: 50, weight: 800, fill: col }) + tx(28 + nw, yy - 20, a, { size: 20, weight: 700 }) + tx(28 + nw, yy + 4, b2, { size: 16, fill: MUTE }); });
-  y += 170; wrap('Cafés and restaurants by distance to the nearest metro station', 22, w - 56, 700).forEach(l => { s += tx(28, y, l, { size: 22, weight: 700, fill: NAVY }); y += 28; }); y -= 10;
-  const bands = [['Within 500 m', G.c500, GC[0]], ['500 m to 1 km', G.c1k - G.c500, GC[1]], ['More than 1 km', G.n - G.c1k, GC[2]]], bh = 44, lw = 160, bmax = w - 28 - lw - 140, bm = Math.max(...bands.map(b => b[1]));
-  bands.forEach(([l, c, col], q) => { const yy = y + 14 + q * (bh + 14), bl = bmax * c / bm; s += tx(28, yy + bh / 2 + 7, l, { size: 18, weight: 700 }) + `<rect x="${28 + lw}" y="${yy}" width="${bl}" height="${bh}" rx="3" fill="${col}" stroke="${q === 1 ? RED : 'none'}" stroke-width="1.5"/>` + tx(28 + lw + bl + 10, yy + bh / 2 + 7, `${p1(c / G.n * 100)} (${c})`, { size: 18, weight: 700 }); });
-  y += 14 + 3 * (bh + 14) + 34;
-  s += tx(28, y, 'Questions for your group', { size: 22, weight: 700, fill: NAVY }); y += 8;
-  ['Is half "following the metro", or is half "ignoring it"? Which is the story?', 'Which stations have no cafés nearby, and why might that be?', 'What would you tell the GMDA or HMRTC to do?'].forEach(t => { wrap(t, 17, w - 80).forEach((l, z) => { y += 24; if (!z) s += `<circle cx="34" cy="${y - 6}" r="4" fill="${INK}"/>`; s += tx(48, y, l, { size: 17 }); }); y += 4; });
-  s += footer(w, h, SRC_G) + '</svg>'; $('#chart').innerHTML = s;
-  legend('<b>Cafés and restaurants</b>' + sw(GC[0], 'Within 500 m of a metro station', 'ring') + sw(GC[1], '500 m to 1 km', 'ring') + sw(GC[2], 'More than 1 km', 'ring') + `<div class="sw"><i class="ring" style="background:#fff;border:3px solid ${NAVY}"></i>Metro station</div>`, SRC_G);
-  map.resize(); map.fitBounds(G.bb, { padding: { top: 30, right: 60, left: 30, bottom: $('#legend').offsetHeight + 40 }, duration: 0 });
+  setLayout('split', '44%');
+  const ix = order(k).slice(0, 10), top = ix.slice(0, 3);
+  $('#chart').innerHTML = hbar({ title: Bf.t, sub: `${Bf.q} Top 10 hexagons by ${m.s}${m.note ? ' (' + m.note + ')' : ''}.` + (st.cafes ? ` OpenStreetMap cafés: ${p1(G.s500)} within 500 m of a metro station, ${p1(G.s1k)} within 1 km.` : ''), rows: ix.map(i => ({ i, label: hname(i), v: W[i][k], col: top.includes(i) ? RED : '#9db1d4', bold: top.includes(i) })), fmt: m.f, avg: { v: city(k), label: `${cityName(k)}: ${cityF(k)}` }, key: [[RED, 'Top three'], ['#9db1d4', 'Next seven'], [INK, cityName(k), 'line']], src: st.cafes ? SRC_O : m.src });
+  bindHover();
+  const C = chor(k, 'jenks', 5); paintChor(C, st.cafes ? 0.6 : 0.82); setHL(ix); setLabels(top, RED); hoverKey = k; credits(st.cafes ? CRED_O : m.cr);
+  let lg = chorLegend(k, C, m.l + ' (natural breaks)') + sw('#fff;border:3px solid ' + RED, 'Top 10, outlined');
+  if (st.cafes) { map.setLayoutProperty('gc', 'visibility', 'visible'); lg += sw(GC[0], 'Café within 500 m of metro', 'ring') + sw(GC[1], 'Café 500 m to 1 km', 'ring') + sw(GC[2], 'Café more than 1 km', 'ring'); }
+  legend(lg, st.cafes ? SRC_O : m.src); fit(st.cafes ? W.map((r, i) => i).filter(i => W[i].osm_cafes > 0).concat(ix) : null, 24);
 };
-const GC = ['#c00000', '#f4a3a3', '#9aa3b2'];
+const GC = ['#c00000', '#f4a3a3', '#7a8599'];
 
 // ---------- init ----------
 async function init() {
-  const g = await fetch('data/mumbai_wards.geojson').then(r => r.json());
-  geo = g; W = geo.features.map(f => f.properties); N = W.length; T = agg(W);
-  geo.features.forEach((f, i) => { f.properties.i = i; f.properties.col = '#dfe5f1'; f.properties.op = .8; });
-  let b = [180, 90, -180, -90]; geo.features.forEach(f => { const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates; polys.forEach(p => p[0].forEach(c => { b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]; })); }); BB = b;
+  geo = await fetch('data/gurugram_hex.geojson').then(r => r.json());
+  W = geo.features.map(f => f.properties); N = W.length; T = agg(W);
+  geo.features.forEach((f, i) => { f.properties.i = i; f.properties.col = ZERO; f.properties.op = .5; });
+  const cnt = {}, seen = {}; W.forEach(r => cnt[r.area] = (cnt[r.area] || 0) + 1);
+  NAME = W.map(r => { const a = cap(r.area); if (cnt[r.area] < 2) return a; seen[r.area] = (seen[r.area] || 0) + 1; return `${a} · hexagon ${seen[r.area]}`; });
+  let b = [180, 90, -180, -90]; geo.features.forEach(f => f.geometry.coordinates[0].forEach(c => { b = [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[0]), Math.max(b[3], c[1])]; })); BB = b;
   buildInsights();
-  // controls
   $('#tabs').innerHTML = STEPS.map(([id, l], j) => `<button role="tab" data-t="${id}" aria-selected="false"><span>${j}</span>${l}</button>`).join('');
   $$('#tabs button').forEach(bt => bt.onclick = () => show(bt.dataset.t));
-  $('#rank-m').innerHTML = RANK_M.map(k => `<button data-v="${k}">${M[k].s[0].toUpperCase() + M[k].s.slice(1)}</button>`).join('');
+  const RK = ['branded_cafes', 'shops', 'buildings', 'new_built_share', 'shops_per_1000_bldg'];
+  $('#rank-m').innerHTML = RK.map(k => `<button data-v="${k}">${cap(M[k].s)}</button>`).join('');
   $$('#rank-m button').forEach(bt => bt.onclick = () => { st.metric = bt.dataset.v; show('rank'); });
-  const opts = ks => ks.map(k => `<option value="${k}">${M[k].l.split(' (')[0]}</option>`).join('');
-  $('#rel-x').innerHTML = opts(REL_M); $('#rel-y').innerHTML = opts(REL_M); $('#map-m').innerHTML = opts(RANK_M);
+  const opts = ks => ks.map(k => `<option value="${k}">${M[k].l}</option>`).join('');
+  $('#rel-x').innerHTML = opts(REL_M); $('#rel-y').innerHTML = opts(REL_M); $('#map-m').innerHTML = opts(RANK_M); $('#yt-m').innerHTML = opts(RANK_M);
+  $('#yt-b').innerHTML = Object.entries(BRIEFS).map(([k, v]) => `<option value="${k}">${v.t}</option>`).join('');
   $('#rel-x').onchange = e => { st.x = e.target.value; show('relate'); }; $('#rel-y').onchange = e => { st.y = e.target.value; show('relate'); }; $('#map-m').onchange = e => { st.metric = e.target.value; show('map'); };
+  $('#yt-b').onchange = e => { st.brief = e.target.value; st.metric = BRIEFS[st.brief].m; show('yourturn'); }; $('#yt-m').onchange = e => { st.metric = e.target.value; show('yourturn'); }; $('#yt-c').onchange = e => { st.cafes = e.target.checked; show('yourturn'); };
   seg('rates-t', 'measure'); seg('rates-m', 'mode'); seg('map-meth', 'method'); seg('map-k', 'classes', true); seg('chart-c', 'chart'); seg('dec-s', 'stage', true); seg('tell-f', 'frame', true); seg('yt-v', 'view');
   $('#dec-next').onclick = () => { st.stage = st.stage % 5 + 1; show('declutter'); };
   const io = ins.map((I, j) => `<option value="${j}">${I.name}</option>`).join(''); $('#bi-ins').innerHTML = io; $('#arc-ins').innerHTML = io;
@@ -560,26 +572,22 @@ async function init() {
   [['b-aud', 'aud'], ['b-dec', 'dec'], ['b-ask', 'ask']].forEach(([id, k]) => $('#' + id).oninput = e => { B[k] = e.target.value; clearTimeout(window.__bt); window.__bt = setTimeout(() => { if (st.step === 'brief') R.brief(); }, 250); });
   $('#tell-clean').onclick = () => { st.clean = true; show('tell'); };
   document.addEventListener('keydown', e => { if (st.step !== 'tell' || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return; if (e.key === 'ArrowRight') { st.frame = Math.min(6, st.frame + 1); show('tell'); } if (e.key === 'ArrowLeft') { st.frame = Math.max(1, st.frame - 1); show('tell'); } if (e.key === 'Escape' && st.clean) { st.clean = false; show('tell'); } });
-  // map
-  map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', bounds: [[b[0], b[1]], [b[2], b[3]]], fitBoundsOptions: { padding: 20 }, attributionControl: { compact: false, customAttribution: 'Wards: BMC via DataMeet · Census 2011 via MCGM' } });
+  map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/positron', bounds: [[b[0], b[1]], [b[2], b[3]]], fitBoundsOptions: { padding: 20 }, attributionControl: false });
   window.__map = map; map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
   map.on('load', async () => {
     map.addSource('w', { type: 'geojson', data: geo });
-    map.addLayer({ id: 'w', type: 'fill', source: 'w', paint: { 'fill-color': ['get', 'col'], 'fill-opacity': ['get', 'op'] } });
-    map.addLayer({ id: 'w-line', type: 'line', source: 'w', paint: { 'line-color': '#5b6680', 'line-width': 1 } });
-    map.addSource('hl2', { type: 'geojson', data: fc([]) });
-    map.addLayer({ id: 'hl2', type: 'line', source: 'hl2', paint: { 'line-color': NAVY, 'line-width': 4 } });
+    map.addLayer({ id: 'w', type: 'fill', source: 'w', paint: { 'fill-color': ['get', 'col'], 'fill-opacity': ['get', 'op'], 'fill-outline-color': 'rgba(255,255,255,0.5)' } });
     map.addSource('hl', { type: 'geojson', data: fc([]) });
-    map.addLayer({ id: 'hl', type: 'line', source: 'hl', paint: { 'line-color': RED, 'line-width': 4 } });
+    map.addLayer({ id: 'hl', type: 'line', source: 'hl', paint: { 'line-color': RED, 'line-width': 3 } });
     map.addSource('hov', { type: 'geojson', data: fc([]) });
     map.addLayer({ id: 'hov', type: 'line', source: 'hov', paint: { 'line-color': '#111', 'line-width': 3 } });
     map.addSource('pc', { type: 'geojson', data: fc([]) });
-    map.addLayer({ id: 'pc', type: 'circle', source: 'pc', paint: { 'circle-radius': ['get', 'r'], 'circle-color': ['get', 'c'], 'circle-opacity': 0.55, 'circle-stroke-color': ['get', 'c'], 'circle-stroke-width': 1.5 } });
-    map.addSource('labs', { type: 'geojson', data: fc([]) });
-    map.addLayer({ id: 'labs', type: 'symbol', source: 'labs', layout: { 'text-field': ['get', 'lab'], 'text-font': ['Noto Sans Bold'], 'text-size': 14, 'symbol-sort-key': ['get', 'pri'], 'text-line-height': 1.1 }, paint: { 'text-color': ['get', 'tc'], 'text-halo-color': '#fff', 'text-halo-width': 2 } });
-    map.on('mousemove', 'w', e => { const i = e.features[0].properties.i; hover(i); if (!popup) popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '320px' }); const k = hoverKey; popup.setLngLat(e.lngLat).setHTML(`<b>Ward ${esc(fname(W[i]))}</b><br>${esc(W[i].zone)}${k ? `<br>${esc(M[k].l.split(' (')[0])}: <b>${M[k].f(W[i][k])}</b>` : ''}`).addTo(map); });
-    map.on('mouseleave', 'w', () => { hover(null); if (popup) popup.remove(); });
+    map.addLayer({ id: 'pc', type: 'circle', source: 'pc', paint: { 'circle-radius': ['get', 'r'], 'circle-color': ['get', 'c'], 'circle-opacity': 0.5, 'circle-stroke-color': ['get', 'c'], 'circle-stroke-width': 1.5 } });
     await loadGurugram();
+    map.addSource('labs', { type: 'geojson', data: fc([]) });
+    map.addLayer({ id: 'labs', type: 'symbol', source: 'labs', layout: { 'text-field': ['get', 'lab'], 'text-font': ['Noto Sans Bold'], 'text-size': 14, 'symbol-sort-key': ['get', 'pri'], 'text-offset': [0, -1.3], 'text-max-width': 12 }, paint: { 'text-color': ['get', 'tc'], 'text-halo-color': '#fff', 'text-halo-width': 2.2 } });
+    map.on('mousemove', 'w', e => { const i = e.features[0].properties.i, r = W[i]; hover(i); if (!popup) popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '330px' }); popup.setLngLat(e.lngLat).setHTML(`<b>${esc(hname(i))}</b> <span style="color:#4a5568">(approximate area)</span><br>Buildings <b>${inr(r.buildings)}</b> · shops and eateries <b>${inr(r.shops)}</b> · branded cafés <b>${r.branded_cafes}</b><br>Nearest metro: ${esc(r.metro_station)}, ${r.metro_km.toFixed(1)} km${hoverKey && !['buildings', 'shops', 'branded_cafes', 'metro_km'].includes(hoverKey) && r[hoverKey] != null ? `<br>${esc(M[hoverKey].l)}: <b>${M[hoverKey].f(r[hoverKey])}</b>` : ''}`).addTo(map); });
+    map.on('mouseleave', 'w', () => { hover(null); if (popup) popup.remove(); });
     readHash(); $('#busy').hidden = true; show(st.step);
   });
   window.addEventListener('hashchange', () => { readHash(); show(st.step); });
@@ -590,17 +598,14 @@ async function loadGurugram() {
   const S = m.features.map(f => f.geometry.coordinates), n = c.features.length;
   const d = c.features.map(f => Math.min(...S.map(s => hav(f.geometry.coordinates, s))));
   c.features.forEach((f, i) => { f.properties.d = d[i]; f.properties.c = d[i] <= 500 ? GC[0] : d[i] <= 1000 ? GC[1] : GC[2]; });
-  const xs = c.features.map(f => f.geometry.coordinates[0]).sort((a, b) => a - b), ys = c.features.map(f => f.geometry.coordinates[1]).sort((a, b) => a - b), pc = (a, q) => a[Math.floor(q * (a.length - 1))], bb = [[pc(xs, 0.03), pc(ys, 0.03)], [pc(xs, 0.97), pc(ys, 0.97)]];
   const sd = [...d].sort((a, b) => a - b), c500 = d.filter(x => x <= 500).length, c1k = d.filter(x => x <= 1000).length;
-  gur = { n, c500, c1k, s500: c500 / n * 100, s1k: c1k / n * 100, med: n % 2 ? sd[(n - 1) / 2] : (sd[n / 2 - 1] + sd[n / 2]) / 2, bb };
+  gur = { n, c500, c1k, s500: c500 / n * 100, s1k: c1k / n * 100, med: n % 2 ? sd[(n - 1) / 2] : (sd[n / 2 - 1] + sd[n / 2]) / 2 };
   window.__gur = gur;
-  const near = m.features.filter(f => { const [x, y] = f.geometry.coordinates; return x > bb[0][0] - 0.03 && x < bb[1][0] + 0.03 && y > bb[0][1] - 0.03 && y < bb[1][1] + 0.03; });
-  map.addSource('gm', { type: 'geojson', data: fc(near) }); map.addSource('gc', { type: 'geojson', data: c });
-  // far first, near on top
+  const near = m.features.filter(f => { const [x, y] = f.geometry.coordinates; return x > BB[0] - 0.05 && x < BB[2] + 0.05 && y > BB[1] - 0.05 && y < BB[3] + 0.05; });
   c.features.sort((a, b) => b.properties.d - a.properties.d);
-  map.getSource('gc').setData(c);
-  map.addLayer({ id: 'gc', type: 'circle', source: 'gc', layout: { visibility: 'none' }, paint: { 'circle-radius': 6, 'circle-color': ['get', 'c'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
-  map.addLayer({ id: 'gm', type: 'circle', source: 'gm', layout: { visibility: 'none' }, paint: { 'circle-radius': 7, 'circle-color': '#fff', 'circle-stroke-color': NAVY, 'circle-stroke-width': 3.5 } });
+  map.addSource('gc', { type: 'geojson', data: c }); map.addSource('gm', { type: 'geojson', data: fc(near) });
+  map.addLayer({ id: 'gc', type: 'circle', source: 'gc', layout: { visibility: 'none' }, paint: { 'circle-radius': 4.5, 'circle-color': ['get', 'c'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
+  map.addLayer({ id: 'gm', type: 'circle', source: 'gm', paint: { 'circle-radius': 5.5, 'circle-color': '#fff', 'circle-stroke-color': NAVY, 'circle-stroke-width': 3 } });
 }
 window.__storyReady = false;
 init();

@@ -69,6 +69,8 @@ body{font:16px/1.5 "Segoe UI",Calibri,Arial,sans-serif;color:var(--ink);backgrou
 .st-tbl td{padding:3.5px 6px;border-bottom:1px solid #e7eaf0;white-space:nowrap}
 .st-tbl .n{text-align:right}
 .st-tbl tr.hov td{background:#fbeaea}
+.st-tbl.st-mid{font-size:18px}.st-tbl.st-mid td{padding:8px 7px}.st-tbl.st-mid th{font-size:16px}
+.st-tbl.st-dt{font-size:19px}.st-tbl.st-dt td{padding:8px 6px}.st-tbl.st-dt th{font-size:17px}
 .st-tbl.st-big{font-size:20px}.st-tbl.st-big td{padding:7.5px 8px}.st-tbl.st-big th{font-size:17px}
 .st-tbl td small{color:var(--mute);font-size:13.5px}
 .st-verdict{font-size:22px;font-weight:700;margin:0 0 12px;line-height:1.3}
