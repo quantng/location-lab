@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storytelling with data · Location Lab</title>
+<meta name="description" content="Business storytelling with data, step by step on Mumbai's 24 municipal wards (Census 2011): from the brief to the data, the insight, the chart, the Big Idea and the story.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../lib/maplibre-gl.css">
+<link rel="stylesheet" href="story.css?v=1">
+<script src="../lib/maplibre-gl.js"></script>
+</head>
+<body>
+<header class="ga-top">
+  <div class="ga-brand"><span class="ga-mark" aria-hidden="true"></span><b>Location Lab</b><span class="ga-sub">· Storytelling with data</span></div>
+  <span class="ga-spacer"></span>
+  <span class="st-topnote">Mumbai's 24 municipal wards · Census 2011</span>
+  <a class="ga-ghost" href="../" rel="noopener">← Workbench</a>
+</header>
+<main class="ga-app">
+  <aside class="ga-side">
+    <nav class="ga-tabs" role="tablist" id="tabs"></nav>
+
+    <section class="ga-pane" id="p-brief">
+      <h2>Start with the decision, not the data</h2>
+      <p class="ga-lead">Before opening a spreadsheet, write down three things: who will listen, what they must decide, and what you want them to do. Everything after this, every chart and every title, serves that decision.</p>
+      <label class="st-f">Audience<input id="b-aud"></label>
+      <label class="st-f">Decision<textarea id="b-dec" rows="2"></textarea></label>
+      <label class="st-f">Ask (what you want them to do)<textarea id="b-ask" rows="2"></textarea></label>
+      <p class="ga-note">Edit the brief. It is kept while this page is open and is used again in step 9, the Big Idea.</p>
+    </section>
+
+    <section class="ga-pane" id="p-data" hidden>
+      <h2>Know your data</h2>
+      <p class="ga-lead">One row is one municipal ward: an area the Brihanmumbai Municipal Corporation runs as a unit. Mumbai has 24. Know where the numbers come from and how old they are before you build a story on them.</p>
+      <div class="ga-card"><h3>Source</h3>Census of India 2011, published ward by ward by the MCGM (BMC) Public Health Department. Ward boundaries: DataMeet. <b>These numbers are from 2011</b>, so say so on every slide; the next Census will change them.</div>
+      <div class="ga-card" id="data-tot"></div>
+      <p class="ga-note">Click a column heading to sort. Hover a ward on the map for its name.</p>
+    </section>
+
+    <section class="ga-pane" id="p-rank" hidden>
+      <h2>Rank it: find the extremes</h2>
+      <p class="ga-lead">Sorting is the cheapest insight there is. Put the wards in order and compare them with the city average: the story is usually at the top and the bottom of the list.</p>
+      <div class="ga-row"><span class="ga-lab">Measure</span><div class="ga-seg" id="rank-m"></div></div>
+      <div class="ga-card" id="rank-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-rates" hidden>
+      <h2>Counts or rates? Two stories</h2>
+      <p class="ga-lead">A count tells you where the most people are; a rate tells you where the problem is most intense. Both are true. Choose the one that matches the decision, and say which one you used.</p>
+      <div class="ga-row"><span class="ga-lab">Topic</span><div class="ga-seg" id="rates-t"><button data-v="homeless">Homeless</button><button data-v="slum">Slums</button></div></div>
+      <div class="ga-row"><span class="ga-lab">Show as</span><div class="ga-seg" id="rates-m"><button data-v="count">Count</button><button data-v="rate">Rate</button></div></div>
+      <div class="ga-card" id="rates-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-compare" hidden>
+      <h2>Compare with a benchmark</h2>
+      <p class="ga-lead">A number means little alone. Is 61% high? Only next to something: the city average, last year, a target. Here the three parts of Mumbai are set against the city as a whole.</p>
+      <div class="ga-card" id="compare-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-relate" hidden>
+      <h2>Look for relationships</h2>
+      <p class="ga-lead">Do two things move together? Put one on each axis. Each circle is a ward, sized by its population. The line shows the trend; r measures how tight the link is, from −1 to +1.</p>
+      <div class="ga-row"><span class="ga-lab">Across</span><select id="rel-x" class="st-sel"></select></div>
+      <div class="ga-row"><span class="ga-lab">Up</span><select id="rel-y" class="st-sel"></select></div>
+      <div class="ga-card" id="relate-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-map" hidden>
+      <h2>Map it, and watch the classes</h2>
+      <p class="ga-lead">A map with colours puts every ward into a few groups. Where you draw the lines between groups is a choice. The same numbers can look calm or alarming depending on that choice.</p>
+      <div class="ga-row"><span class="ga-lab">Measure</span><select id="map-m" class="st-sel"></select></div>
+      <div class="ga-row"><span class="ga-lab">Groups by</span><div class="ga-seg" id="map-meth"><button data-v="quantile">Equal counts</button><button data-v="equal">Equal steps</button><button data-v="jenks">Natural breaks</button></div></div>
+      <div class="ga-row"><span class="ga-lab">Groups</span><div class="ga-seg" id="map-k"><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button><button data-v="7">7</button></div></div>
+      <div class="ga-card" id="map-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-chart" hidden>
+      <h2>Choose the chart for the question</h2>
+      <p class="ga-lead">The question decides the chart. Here the question is fixed: which wards have the most people in slums? Try five ways of answering it and see which one answers at a glance.</p>
+      <div class="ga-row"><div class="ga-seg" id="chart-c"><button data-v="pie">Pie</button><button data-v="table">Table</button><button data-v="bar">Sorted bar</button><button data-v="dot">Dot plot</button><button data-v="map">Map</button></div></div>
+      <div class="ga-card" id="chart-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-declutter" hidden>
+      <h2>Declutter and focus</h2>
+      <p class="ga-lead">Every line, colour and word on a chart asks for attention. Take away what does not help, then spend colour only on the point you want remembered. Same data, five stages.</p>
+      <div class="ga-row"><span class="ga-lab">Stage</span><div class="ga-seg" id="dec-s"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button></div><button class="ga-primary" id="dec-next">Next →</button></div>
+      <div class="ga-card" id="dec-out"></div>
+    </section>
+
+    <section class="ga-pane" id="p-bigidea" hidden>
+      <h2>One sentence: the Big Idea</h2>
+      <p class="ga-lead">If the Commissioner remembers one sentence, what should it be? Join your brief to one insight. The sentence names the audience, states the point and asks for the decision.</p>
+      <div class="ga-row"><span class="ga-lab">Insight</span><select id="bi-ins" class="st-sel st-wide"></select></div>
+      <div class="ga-card" id="bi-brief"></div>
+      <p class="ga-note">Change the brief in step 0; the sentence follows.</p>
+    </section>
+
+    <section class="ga-pane" id="p-arc" hidden>
+      <h2>Shape the story: setup, tension, resolution</h2>
+      <p class="ga-lead">Good stories move. The setup says what everyone already accepts; the tension shows what is wrong with that picture; the resolution says what to do. One sentence carries it: And, But, Therefore.</p>
+      <div class="ga-row"><span class="ga-lab">Insight</span><select id="arc-ins" class="st-sel st-wide"></select></div>
+    </section>
+
+    <section class="ga-pane" id="p-tell" hidden>
+      <h2>Tell it</h2>
+      <p class="ga-lead">Six frames, one idea each, in big type. The map moves to the wards that matter. Use Next and Prev, or the arrow keys. Add <b>&amp;clean=1</b> to the address to hide the side panel.</p>
+      <div class="ga-row"><span class="ga-lab">Frame</span><div class="ga-seg" id="tell-f"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button></div></div>
+      <div class="ga-row"><button class="ga-ghostbtn" id="tell-clean">Present full screen</button></div>
+    </section>
+
+    <section class="ga-pane" id="p-yourturn" hidden>
+      <h2>Your turn: Gurugram</h2>
+      <p class="ga-lead">Is Gurugram's café economy following the metro? 459 cafés and restaurants and the NCR metro stations, from OpenStreetMap. Work in groups: find the insight, write the Big Idea for the GMDA or HMRTC, and storyboard three frames.</p>
+      <div class="ga-row"><span class="ga-lab">Show</span><div class="ga-seg" id="yt-v"><button data-v="map">Map and chart</button><button data-v="template">Group worksheet</button></div></div>
+      <div class="ga-card" id="yt-out"></div>
+      <p class="ga-note">GMDA: Gurugram Metropolitan Development Authority. HMRTC: Haryana Mass Rapid Transport Corporation. Distances are straight-line (as the crow flies) to the nearest station.</p>
+    </section>
+  </aside>
+  <div class="st-stage" id="stage" data-layout="map">
+    <div id="chart" class="st-chart"></div>
+    <div class="st-mapwrap" id="mapwrap">
+      <div id="map"></div>
+      <div id="legend" class="ga-legend" hidden></div>
+      <div id="tellcard" class="st-tell" hidden></div>
+    </div>
+    <div id="busy" class="ga-busy">Loading Mumbai…</div>
+  </div>
+</main>
+<script src="story.js?v=1"></script>
+</body>
+</html>

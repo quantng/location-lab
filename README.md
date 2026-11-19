@@ -10,6 +10,8 @@ A drag-and-drop workbench for spatial data and location analytics, built for the
 
 **Companion PDFs** (theory first, then the labs): [India](docs/Location-Analytics-Companion-India.pdf) · [Singapore](docs/Location-Analytics-Companion-Singapore.pdf)
 
+**Storytelling with data:** https://quantng.github.io/location-lab/story/ — from the brief to the Big Idea to a six-frame story, step by step on Mumbai's 24 municipal wards (Census 2011), with a Gurugram group exercise.
+
 Everything runs in your browser and files you upload never leave your laptop.
 
 ## What it does
